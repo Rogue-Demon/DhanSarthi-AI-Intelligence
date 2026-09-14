@@ -1,0 +1,784 @@
+/* ============================================================
+   SecureFinancialIntelligence — Self-contained styles
+   Uses existing DhanSarthi CSS variable system for consistency.
+   ============================================================ */
+
+/* Page Root */
+.secure-fi {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--text-primary);
+  font-family:
+    'Inter',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+/* ─── PIN Auth Screen ─── */
+.secure-fi-auth {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at 20% 50%, rgba(124, 58, 237, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.06) 0%, transparent 50%),
+    var(--background);
+}
+
+.secure-fi-auth__card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card);
+  border: var(--clay-border);
+  border-radius: 1.25rem;
+  padding: 2.5rem 2rem;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    var(--clay-inner-shadow);
+  text-align: center;
+  animation: secureFiSlideUp 0.5s ease-out;
+}
+
+@keyframes secureFiSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.secure-fi-auth__shield {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1.25rem;
+  background: var(--gradient-primary);
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.25);
+}
+
+.secure-fi-auth__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.375rem;
+  color: var(--text-primary);
+}
+
+.secure-fi-auth__subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.secure-fi-auth__pin-group {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.secure-fi-auth__pin-digit {
+  width: 56px;
+  height: 64px;
+  border: 2px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+  caret-color: var(--primary);
+}
+
+.secure-fi-auth__pin-digit:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+  transform: scale(1.04);
+}
+
+.secure-fi-auth__pin-digit--filled {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.secure-fi-auth__pin-digit--error {
+  border-color: var(--danger);
+  animation: secureFiShake 0.4s ease;
+}
+
+@keyframes secureFiShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+.secure-fi-auth__submit {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: var(--gradient-primary);
+  color: #fff;
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    opacity 0.2s ease,
+    transform 0.15s ease;
+  position: relative;
+}
+
+.secure-fi-auth__submit:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.secure-fi-auth__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secure-fi-auth__error {
+  margin-top: 1rem;
+  padding: 0.625rem 1rem;
+  background: hsla(0, 84%, 60%, 0.1);
+  border: 1px solid hsla(0, 84%, 60%, 0.2);
+  border-radius: 0.5rem;
+  color: var(--danger);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.secure-fi-auth__branding {
+  margin-top: 1.75rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* Spinner */
+.secure-fi-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: secureFiSpin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+}
+
+@keyframes secureFiSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─── Intelligence Page (post-auth) ─── */
+.secure-fi-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+  animation: secureFiFadeIn 0.6s ease-out;
+}
+
+@keyframes secureFiFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ─── Profile Header ─── */
+.secure-fi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.secure-fi-header__left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.secure-fi-header__avatar {
+  width: 52px;
+  height: 52px;
+  background: var(--gradient-hero);
+  border-radius: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.secure-fi-header__name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.125rem;
+}
+
+.secure-fi-header__meta {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.secure-fi-header__badges {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.secure-fi-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: 2rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.secure-fi-badge--readonly {
+  background: hsla(217, 91%, 60%, 0.1);
+  color: var(--info);
+  border: 1px solid hsla(217, 91%, 60%, 0.2);
+}
+
+.secure-fi-badge--shield {
+  background: hsla(158, 82%, 40%, 0.1);
+  color: var(--success);
+  border: 1px solid hsla(158, 82%, 40%, 0.2);
+}
+
+/* ─── Data Quality Banner ─── */
+.secure-fi-dq-banner {
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.secure-fi-dq-banner--complete {
+  background: hsla(158, 82%, 40%, 0.08);
+  color: var(--success);
+  border: 1px solid hsla(158, 82%, 40%, 0.15);
+}
+
+.secure-fi-dq-banner--good {
+  background: hsla(217, 91%, 60%, 0.08);
+  color: var(--info);
+  border: 1px solid hsla(217, 91%, 60%, 0.15);
+}
+
+.secure-fi-dq-banner--partial {
+  background: hsla(35, 92%, 50%, 0.08);
+  color: var(--warning);
+  border: 1px solid hsla(35, 92%, 50%, 0.15);
+}
+
+.secure-fi-dq-banner--limited {
+  background: hsla(0, 84%, 60%, 0.08);
+  color: var(--danger);
+  border: 1px solid hsla(0, 84%, 60%, 0.15);
+}
+
+/* ─── Section Title ─── */
+.secure-fi-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.secure-fi-section-title__icon {
+  font-size: 1.25rem;
+}
+
+/* ─── Financial Snapshot Grid ─── */
+.secure-fi-snapshot {
+  margin-bottom: 2.5rem;
+}
+
+.secure-fi-snapshot__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.secure-fi-metric-card {
+  background: var(--card);
+  border: var(--clay-border);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  box-shadow: var(--clay-inner-shadow);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.secure-fi-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.08),
+    var(--clay-inner-shadow);
+}
+
+.secure-fi-metric-card__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+}
+
+.secure-fi-metric-card__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.secure-fi-metric-card__value--positive {
+  color: var(--success);
+}
+
+.secure-fi-metric-card__value--negative {
+  color: var(--danger);
+}
+
+.secure-fi-metric-card__value--na {
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-style: italic;
+}
+
+.secure-fi-metric-card__sub {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin-top: 0.375rem;
+}
+
+/* ─── Risk Areas ─── */
+.secure-fi-risks {
+  margin-bottom: 2.5rem;
+}
+
+.secure-fi-risks__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+}
+
+.secure-fi-risk-card {
+  background: var(--card);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border-left: 4px solid;
+  box-shadow: var(--clay-inner-shadow);
+  transition: transform 0.2s ease;
+  animation: secureFiSlideUp 0.5s ease-out both;
+}
+
+.secure-fi-risk-card:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.secure-fi-risk-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.secure-fi-risk-card:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.secure-fi-risk-card:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+.secure-fi-risk-card:hover {
+  transform: translateY(-2px);
+}
+
+.secure-fi-risk-card--HIGH {
+  border-left-color: var(--danger);
+}
+
+.secure-fi-risk-card--MEDIUM {
+  border-left-color: var(--warning);
+}
+
+.secure-fi-risk-card--LOW {
+  border-left-color: var(--info);
+}
+
+.secure-fi-risk-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.75rem;
+}
+
+.secure-fi-risk-card__severity {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: 2rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.secure-fi-risk-card__severity--HIGH {
+  background: hsla(0, 84%, 60%, 0.12);
+  color: var(--danger);
+}
+
+.secure-fi-risk-card__severity--MEDIUM {
+  background: hsla(35, 92%, 50%, 0.12);
+  color: var(--warning);
+}
+
+.secure-fi-risk-card__severity--LOW {
+  background: hsla(217, 91%, 60%, 0.12);
+  color: var(--info);
+}
+
+.secure-fi-risk-card__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.secure-fi-risk-card__explanation {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 0.625rem;
+}
+
+.secure-fi-risk-card__why {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.secure-fi-risk-card__metric {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  background: var(--muted);
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+/* ─── Opportunities ─── */
+.secure-fi-opps {
+  margin-bottom: 2.5rem;
+}
+
+.secure-fi-opps__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1rem;
+}
+
+.secure-fi-opp-card {
+  background: var(--card);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  border-left: 4px solid var(--success);
+  box-shadow: var(--clay-inner-shadow);
+  transition: transform 0.2s ease;
+  animation: secureFiSlideUp 0.5s ease-out both;
+}
+
+.secure-fi-opp-card:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.secure-fi-opp-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.secure-fi-opp-card:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.secure-fi-opp-card:hover {
+  transform: translateY(-2px);
+}
+
+.secure-fi-opp-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.625rem;
+}
+
+.secure-fi-opp-card__icon {
+  font-size: 1.125rem;
+}
+
+.secure-fi-opp-card__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.secure-fi-opp-card__explanation {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.secure-fi-opp-card__benefit {
+  font-size: 0.75rem;
+  color: var(--success);
+  font-weight: 500;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ─── AI Advice ─── */
+.secure-fi-advice {
+  margin-bottom: 2.5rem;
+}
+
+.secure-fi-advice__card {
+  background: var(--card);
+  border: var(--clay-border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: var(--clay-inner-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.secure-fi-advice__card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-hero);
+}
+
+.secure-fi-advice__summary {
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin-bottom: 1.25rem;
+}
+
+.secure-fi-advice__priorities-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.secure-fi-advice__priorities {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.secure-fi-advice__priority {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.5rem 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.secure-fi-advice__priority::before {
+  content: '→';
+  color: var(--primary);
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.secure-fi-advice__fallback-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: hsla(35, 92%, 50%, 0.1);
+  border: 1px solid hsla(35, 92%, 50%, 0.2);
+  border-radius: 2rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--warning);
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+/* ─── Footer ─── */
+.secure-fi-footer {
+  text-align: center;
+  padding: 1.5rem 0;
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+/* ─── Empty / Error States ─── */
+.secure-fi-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.secure-fi-error-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  background: var(--background);
+}
+
+.secure-fi-error-page__icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.secure-fi-error-page__title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.secure-fi-error-page__message {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* ─── Loading Skeleton ─── */
+.secure-fi-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+}
+
+.secure-fi-loading__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: secureFiSpin 0.7s linear infinite;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .secure-fi-page {
+    padding: 1.25rem 1rem 2rem;
+  }
+
+  .secure-fi-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .secure-fi-snapshot__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .secure-fi-risks__grid,
+  .secure-fi-opps__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .secure-fi-auth__card {
+    padding: 2rem 1.5rem;
+  }
+
+  .secure-fi-auth__pin-digit {
+    width: 48px;
+    height: 56px;
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .secure-fi-snapshot__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .secure-fi-auth__pin-group {
+    gap: 0.5rem;
+  }
+
+  .secure-fi-auth__pin-digit {
+    width: 44px;
+    height: 52px;
+  }
+}

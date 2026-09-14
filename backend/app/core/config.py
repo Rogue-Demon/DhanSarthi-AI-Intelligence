@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     database_max_overflow: int = Field(default=10, validation_alias="DATABASE_MAX_OVERFLOW")
     api_v1_prefix: str = Field(default="/api/v1", validation_alias="API_V1_PREFIX")
     cors_origins: str = Field(default="http://localhost:5173", validation_alias="CORS_ORIGINS")
+    financial_domain_guard_enabled: bool = Field(default=True, validation_alias="FINANCIAL_DOMAIN_GUARD_ENABLED")
     ai_provider_api_key: str | None = Field(default=None, validation_alias="AI_PROVIDER_API_KEY")
     embedding_provider_api_key: str | None = Field(default=None, validation_alias="EMBEDDING_PROVIDER_API_KEY")
     ai_provider: str = Field(default="mock", validation_alias="AI_PROVIDER")
@@ -52,6 +53,8 @@ class Settings(BaseSettings):
     ai_max_message_length: int = Field(default=2000, validation_alias="AI_MAX_MESSAGE_LENGTH")
     ai_rate_limit_requests: int = Field(default=30, validation_alias="AI_RATE_LIMIT_REQUESTS")
     ai_rate_limit_window_seconds: int = Field(default=60, validation_alias="AI_RATE_LIMIT_WINDOW_SECONDS")
+    document_ai_provider: str = Field(default="local", validation_alias="DOCUMENT_AI_PROVIDER")
+    ocr_provider: str = Field(default="local", validation_alias="OCR_PROVIDER")
     max_document_size_mb: int = Field(default=10, validation_alias="MAX_DOCUMENT_SIZE_MB")
     document_storage_path: str = Field(default="storage/documents", validation_alias="DOCUMENT_STORAGE_PATH")
     document_max_pages: int = Field(default=100, validation_alias="DOCUMENT_MAX_PAGES")
@@ -152,6 +155,11 @@ class Settings(BaseSettings):
     ai_rag_dedup_similarity_threshold: float = Field(default=0.65, validation_alias="AI_RAG_DEDUP_SIMILARITY_THRESHOLD")
     ai_max_history_messages_after_compression: int = Field(default=4, validation_alias="AI_MAX_HISTORY_MESSAGES_AFTER_COMPRESSION")
     ai_prompt_compression_version: str = Field(default="v1", validation_alias="AI_PROMPT_COMPRESSION_VERSION")
+
+    # STT (Speech-to-Text) Configuration
+    stt_provider: str = Field(default="local", validation_alias="STT_PROVIDER")
+    stt_model_name: str = Field(default="tiny", validation_alias="STT_MODEL_NAME")
+    stt_max_audio_size_mb: int = Field(default=10, validation_alias="STT_MAX_AUDIO_SIZE_MB")
 
     # Phase L.9.9 — AI Production Resilience, Failure Recovery & Graceful Degradation
     ai_resilience_enabled: bool = Field(default=True, validation_alias="AI_RESILIENCE_ENABLED")

@@ -40,6 +40,7 @@ from app.services.document_import_service import FinancialDocumentImportService
 from app.services.financial_intelligence_service import FinancialIntelligenceService
 from app.services.report_service import ReportService
 from app.services.secure_financial_intelligence_service import SecureFinancialIntelligenceService
+from app.services.creditworthiness_service import CreditworthinessService
 
 __all__ = [
     "AuthService",
@@ -62,5 +63,6 @@ __all__ = [
     "FinancialIntelligenceService",
     "ReportService",
     "SecureFinancialIntelligenceService",
+    "CreditworthinessService",
 ]
 

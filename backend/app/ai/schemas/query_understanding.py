@@ -49,6 +49,10 @@ class QueryUnderstanding(BaseModel):
     requires_market_data: bool = False
     requires_conversation_context: bool = False
 
+    is_financial: bool = True
+    refusal_message: Optional[str] = None
+    is_mixed: bool = False
+
     execution_plan: Optional[QueryExecutionPlan] = None
 
     confidence: ConfidenceScores = Field(default_factory=ConfidenceScores)

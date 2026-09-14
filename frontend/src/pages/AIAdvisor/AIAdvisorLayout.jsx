@@ -3,15 +3,13 @@ import { Outlet } from 'react-router-dom'
 import { PageTransition } from '@/components/motion'
 import Sidebar from './Sidebar'
 import AIHeader from './AIHeader'
-import InsightPanel from './InsightPanel'
 
 /**
  * AIAdvisorLayout Component
  *
- * Coordinates the 3-column AI Workspace layout:
+ * Coordinates the AI Workspace layout:
  * - Left Conversation Sidebar (drawer on mobile)
- * - Middle Main Chat / Module Workspace
- * - Right AI Insight & Health Panel
+ * - Main Chat / Module Workspace
  */
 export function AIAdvisorLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -29,9 +27,6 @@ export function AIAdvisorLayout() {
           <Outlet />
         </div>
       </main>
-
-      {/* Column 3: Right AI Insight Panel */}
-      <InsightPanel />
     </PageTransition>
   )
 }

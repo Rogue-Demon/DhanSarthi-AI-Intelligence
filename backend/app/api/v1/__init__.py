@@ -22,6 +22,7 @@ from app.api.v1.market import router as market_router
 from app.api.v1.reports import router as reports_router
 from app.api.v1.secure_intelligence import router as secure_intelligence_router
 from app.api.v1.investment_guide import router as investment_guide_router
+from app.api.v1.creditworthiness import router as creditworthiness_router
 
 api_router = APIRouter()
 
@@ -46,5 +47,6 @@ api_router.include_router(market_router)
 api_router.include_router(reports_router)
 api_router.include_router(secure_intelligence_router)
 api_router.include_router(investment_guide_router)
+api_router.include_router(creditworthiness_router)
 
 

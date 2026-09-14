@@ -1,26 +1,35 @@
 """
-Image document extractor stub (place-holder for future OCR provider).
+Image document extractor backed by DhanSarthi OCR provider interface.
+Processes uploaded PNG, JPEG, WEBP images for financial text extraction.
 """
 
 from __future__ import annotations
 
 from app.documents.extraction.base import DocumentTextExtractor, ExtractionOutput, PageContent
+from app.documents.ocr import get_ocr_provider
 
 
 class ImageDocumentExtractor(DocumentTextExtractor):
-    """Placeholder for OCR extraction. Always flags document as requiring OCR."""
+    """Image document extractor integrating live OCR engine."""
 
     def extract(self, data: bytes) -> ExtractionOutput:
-        # Images cannot be parsed deterministically without an OCR engine like Tesseract.
-        # We return a structured output highlighting that OCR is required.
-        page = PageContent(
-            page_number=1,
-            text="",
-            tables=[]
-        )
+        provider = get_ocr_provider()
+        ocr_res = provider.process_image(data)
+
+        pages = [
+            PageContent(
+                page_number=p.page_number,
+                text=p.raw_text,
+                tables=[]
+            )
+            for p in ocr_res.pages
+        ]
+
+        ocr_required = not bool(ocr_res.raw_text and ocr_res.raw_text.strip())
+
         return ExtractionOutput(
-            pages=[page],
-            raw_text="",
-            page_count=1,
-            ocr_required=True
+            pages=pages,
+            raw_text=ocr_res.raw_text,
+            page_count=len(pages) or 1,
+            ocr_required=ocr_required
         )

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File, Form, HTTPException, status
 
 from app.api.deps import (
     get_ai_advisor_service,
@@ -350,3 +350,82 @@ async def get_ai_metrics(
     obs_service = get_observability_service()
     records = obs_service.store.get_telemetries(limit=min(limit, 200))
     return [r.model_dump() for r in records]
+
+
+# ---------------------------------------------------------------------------
+# Speech-to-Text (STT) Transcription Endpoint
+# ---------------------------------------------------------------------------
+
+import logging
+logger = logging.getLogger(__name__)
+
+
+@router.post(
+    "/transcribe",
+    summary="Transcribe Speech Audio",
+    description="Transcribe uploaded audio file to text using configured STT provider (Local Whisper for development). Temporary audio files are cleaned up immediately.",
+)
+async def transcribe_audio(
+    file: UploadFile = File(...),
+    lang: str | None = Form(None),
+    user_id: int = Depends(get_current_user_id),
+):
+    """Accepts multipart form audio upload (`file`), transcribes to text via configured STT provider,
+
+    and returns `{"text": "<transcript>"}`. Audio file is temporary and automatically cleaned up.
+    """
+    import tempfile
+    import os
+    from app.services.stt_service import get_stt_provider
+    from app.core.config import settings
+
+    if not file or not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No audio file provided for transcription.",
+        )
+
+    max_bytes = getattr(settings, "stt_max_audio_size_mb", 10) * 1024 * 1024
+    suffix = os.path.splitext(file.filename)[1] or ".webm"
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    temp_path = temp_file.name
+
+    try:
+        content = await file.read()
+        if len(content) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Empty audio file provided.",
+            )
+        if len(content) > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"Audio file exceeds maximum allowed size of {settings.stt_max_audio_size_mb}MB.",
+            )
+
+        temp_file.write(content)
+        temp_file.close()
+
+        stt_provider = get_stt_provider()
+        transcript = await stt_provider.transcribe(temp_path, lang=lang)
+
+        if not transcript:
+            return {"text": "", "message": "No speech detected. Please try speaking again."}
+
+        return {"text": transcript}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Transcription failed for user {user_id}: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Speech transcription failed. Please try again.",
+        ) from exc
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+

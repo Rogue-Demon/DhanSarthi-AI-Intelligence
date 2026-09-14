@@ -23,6 +23,7 @@ from app.schemas.document import (
     ExtractionResponse,
     ExtractedFieldSchema,
     TransactionCandidateSchema,
+    ReclassifyRequest,
 )
 from app.services.document_service import DocumentService
 from app.services.document_import_service import FinancialDocumentImportService
@@ -139,6 +140,24 @@ async def process_document(
     return _build_extraction_response(extraction)
 
 
+@router.post(
+    "/{document_id}/reclassify",
+    response_model=ExtractionResponse,
+    summary="Reclassify document type manually",
+)
+async def reclassify_document(
+    document_id: int,
+    req: ReclassifyRequest,
+    user_id: int = Depends(get_current_user_id),
+    doc_service: DocumentService = Depends(get_document_service),
+) -> ExtractionResponse:
+    """Manually override document classification and re-run schema extraction."""
+    extraction = await doc_service.reclassify_document(
+        document_id=document_id, user_id=user_id, target_type=req.document_type
+    )
+    return _build_extraction_response(extraction)
+
+
 @router.get(
     "/{document_id}/extraction",
     response_model=ExtractionResponse,
@@ -225,11 +244,19 @@ def _build_extraction_response(extraction) -> ExtractionResponse:
 
     # Salary Slip candidate construction
     if doc_type == DocumentType.SALARY_SLIP:
-        if "net_salary" in fields_map:
-            net_val = Decimal(str(fields_map["net_salary"]["value"]))
+        target_salary_key = "net_salary" if "net_salary" in fields_map else ("salary" if "salary" in fields_map else None)
+        if target_salary_key:
+            net_val = Decimal(str(fields_map[target_salary_key]["value"]))
             emp_val = fields_map.get("employer", {}).get("value", "Employer")
             
             p_end = extraction.period_end
+            if not p_end and "date" in fields_map:
+                try:
+                    d_str = str(fields_map["date"].get("value", ""))
+                    p_end = datetime.date.fromisoformat(d_str)
+                except Exception:
+                    pass
+
             if not p_end and "salary_period" in fields_map:
                 p_str = str(fields_map["salary_period"].get("value", ""))
                 m = re.search(r"([a-zA-Z]+)\s*(\d{4})", p_str)
@@ -246,29 +273,30 @@ def _build_extraction_response(extraction) -> ExtractionResponse:
 
             income_candidates.append(
                 IncomeCandidateSchema(
-                    candidate_id="net_salary",
+                    candidate_id=target_salary_key,
                     source=f"Salary ({emp_val})" if emp_val != "Employer" else "Salary Slip Import",
                     amount=net_val,
                     income_date=p_end,
                     category="Salary",
-                    description="Imported Net Salary from document"
+                    description="Imported Salary from document"
                 )
             )
 
-    # Bill candidate construction
-    elif doc_type == DocumentType.BILL:
+    # Bill / Invoice / Receipt candidate construction
+    elif doc_type in (DocumentType.BILL, DocumentType.INVOICE, DocumentType.EXPENSE_RECEIPT):
         if "total_amount" in fields_map:
             tot_val = Decimal(str(fields_map["total_amount"]["value"]))
-            vendor_val = fields_map.get("vendor", {}).get("value", "Biller")
+            vendor_val = fields_map.get("vendor", {}).get("value", "Vendor")
             b_date = extraction.period_end or datetime.date.today()
+            category_val = "Utilities" if doc_type == DocumentType.BILL else ("Business Expense" if doc_type == DocumentType.INVOICE else "General Expense")
             expense_candidates.append(
                 ExpenseCandidateSchema(
                     candidate_id="total_amount",
                     merchant=vendor_val,
                     amount=tot_val,
                     expense_date=b_date,
-                    category="Utilities",
-                    description="Imported Utility Bill"
+                    category=category_val,
+                    description=f"Imported {doc_type.value.replace('_', ' ').title()}"
                 )
             )
 

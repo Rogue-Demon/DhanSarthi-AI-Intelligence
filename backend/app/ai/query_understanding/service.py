@@ -12,6 +12,7 @@ import re
 import time
 from typing import Any, List, Optional
 
+from app.ai.query_understanding.domain_guard import FinancialDomainGuard
 from app.ai.query_understanding.entity_extractor import EntityExtractor
 from app.ai.query_understanding.hinglish_parser import HinglishParser
 from app.ai.query_understanding.intent_scope_classifier import IntentScopeClassifier
@@ -37,6 +38,7 @@ class QueryUnderstandingService:
         self._router = IntentRouter()
         self._classifier = IntentScopeClassifier()
         self._rewriter = RetrievalQueryRewriter()
+        self._guard = FinancialDomainGuard()
 
     def analyze(
         self,
@@ -102,9 +104,15 @@ class QueryUnderstandingService:
         if tracker and t0 > 0.0:
             tracker.record("entity_extraction_ms", (time.perf_counter() - t0) * 1000.0)
 
-        # 6 & 7. Intent & Sub-Intent Classification + QueryExecutionPlan
+        # 5.5 Financial Domain Scope Guard
+        guard_res = self._guard.check_query(resolved_text, history=history)
+        if not guard_res.is_financial:
+            intent = QueryIntent.OUT_OF_SCOPE
+        else:
+            intent = self._router.classify(resolved_text)
+
+        # 6 & 7. Sub-Intent Classification + QueryExecutionPlan
         t0 = time.perf_counter() if tracker else 0.0
-        intent = self._router.classify(resolved_text)
         sub_intent = self._router.classify_sub_intent(resolved_text)
         execution_plan = self._classifier.build_execution_plan(
             query=original_query,
@@ -118,10 +126,10 @@ class QueryUnderstandingService:
         if tracker and t0 > 0.0:
             tracker.record("intent_scope_ms", (time.perf_counter() - t0) * 1000.0)
 
-        requires_personal_data = execution_plan.requires_financial_engine
-        requires_rag = execution_plan.requires_rag
-        requires_market_data = execution_plan.requires_market_data
-        requires_conv_ctx = execution_plan.requires_conversation_context
+        requires_personal_data = execution_plan.requires_financial_engine if guard_res.is_financial else False
+        requires_rag = execution_plan.requires_rag if guard_res.is_financial else False
+        requires_market_data = execution_plan.requires_market_data if guard_res.is_financial else False
+        requires_conv_ctx = execution_plan.requires_conversation_context if guard_res.is_financial else False
 
         partial_understanding = QueryUnderstanding(
             original_query=original_query,
@@ -141,6 +149,9 @@ class QueryUnderstandingService:
             requires_rag=requires_rag,
             requires_market_data=requires_market_data,
             requires_conversation_context=requires_conv_ctx,
+            is_financial=guard_res.is_financial,
+            refusal_message=guard_res.refusal_message,
+            is_mixed=guard_res.is_mixed,
             execution_plan=execution_plan,
             correction_applied=correction_applied,
             hinglish_translated=is_hinglish,

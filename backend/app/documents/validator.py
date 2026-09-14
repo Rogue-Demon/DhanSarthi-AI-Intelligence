@@ -114,9 +114,29 @@ class FinancialDocumentValidator:
         self, db: Session, user_id: int, result: FinancialExtractionResult, warnings: List[str]
     ):
         if result.document_type == DocumentType.SALARY_SLIP:
-            net_salary = self._get_field_value(result, "net_salary")
+            net_salary = self._get_field_value(result, "net_salary") or self._get_field_value(result, "salary")
+            employer = self._get_field_value(result, "employer") or "Salary"
+            doc_date = self._get_field_value(result, "date") or result.period_end
+
             if net_salary is not None:
-                # Find latest active income for the user categorized as Salary
+                # 1. Exact duplicate check for the same date and amount
+                dup_query = (
+                    select(Income)
+                    .where(Income.user_id == user_id)
+                    .where(Income.amount == net_salary)
+                    .where(Income.deleted_at.is_(None))
+                )
+                if doc_date and isinstance(doc_date, date):
+                    dup_query = dup_query.where(Income.income_date == doc_date)
+
+                dup_record = db.execute(dup_query).scalars().first()
+                if dup_record:
+                    warnings.append(
+                        f"DUPLICATE_DETECTED: This salary record (₹{net_salary} on {dup_record.income_date}) "
+                        f"may already exist in your income records."
+                    )
+
+                # 2. Variance conflict check against latest active salary record
                 stmt = (
                     select(Income)
                     .where(Income.user_id == user_id)
@@ -126,7 +146,7 @@ class FinancialDocumentValidator:
                     .limit(1)
                 )
                 existing = db.execute(stmt).scalar_one_or_none()
-                if existing:
+                if existing and dup_record != existing:
                     # If salary differs, generate conflict warning
                     if abs(existing.amount - net_salary) > Decimal("5.00"):
                         warnings.append(

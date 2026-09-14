@@ -92,6 +92,21 @@ export const useProcessDocument = () => {
 }
 
 /**
+ * Manually override document type classification and re-run extraction.
+ */
+export const useReclassifyDocument = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ documentId, documentType }) =>
+      apiClient.post(ENDPOINTS.documents.reclassify(documentId), { document_type: documentType }),
+    onSuccess: (_, { documentId }) => {
+      queryClient.invalidateQueries({ queryKey: DOCUMENT_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: DOCUMENT_KEYS.extraction(documentId) })
+    },
+  })
+}
+
+/**
  * Confirm and import selected fields and transactions into authoritative database.
  * Invalidates financial data queries upon success.
  */

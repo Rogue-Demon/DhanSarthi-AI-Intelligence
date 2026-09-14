@@ -112,23 +112,23 @@ def test_export_report_cross_user_isolation(client: TestClient):
     login_b = client.post("/api/v1/auth/login", json={"email": "userb_report@test.com", "password": "password123"},)
     headers_b = {"Authorization": f"Bearer {login_b.json()['access_token']}"}
 
-    # Add Income for User A
-    client.post("/api/v1/income", json={"amount": "150000.00", "source": "UserA Secret Salary", "category": "Salary", "income_date": "2026-08-14"}, headers=headers_a)
+    # Add Expense for User A
+    client.post("/api/v1/expenses", json={"amount": "150000.00", "description": "UserA Secret Expense", "category": "Shopping", "expense_date": "2026-09-14"}, headers=headers_a)
 
-    # Add Income for User B
-    client.post("/api/v1/income", json={"amount": "50000.00", "source": "UserB Secret Bonus", "category": "Bonus", "income_date": "2026-08-14"}, headers=headers_b)
+    # Add Expense for User B
+    client.post("/api/v1/expenses", json={"amount": "50000.00", "description": "UserB Secret Bonus", "category": "Food", "expense_date": "2026-09-14"}, headers=headers_b)
 
     # User A downloads CSV report
     resp_a = client.get("/api/v1/reports/export?report_type=expense_breakdown&format=csv", headers=headers_a)
     assert resp_a.status_code == 200
-    assert "₹150,000.00" in resp_a.text or "150000" in resp_a.text
-    assert "₹50,000.00" not in resp_a.text
+    assert "150000" in resp_a.text or "150,000" in resp_a.text
+    assert "50000" not in resp_a.text
 
     # User B downloads CSV report
     resp_b = client.get("/api/v1/reports/export?report_type=expense_breakdown&format=csv", headers=headers_b)
     assert resp_b.status_code == 200
-    assert "₹50,000.00" in resp_b.text or "50000" in resp_b.text
-    assert "₹150,000.00" not in resp_b.text
+    assert "50000" in resp_b.text or "50,000" in resp_b.text
+    assert "150000" not in resp_b.text
 
 
 

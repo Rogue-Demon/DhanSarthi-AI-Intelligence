@@ -10,6 +10,7 @@ Security rules enforced by this service:
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -89,6 +90,7 @@ class ConversationService:
             auto_title = first_message.strip()[:80]
             if auto_title:
                 self._conv_repo.update_title(conversation, auto_title)
+                conversation.updated_at = datetime.now(timezone.utc)
                 self._db.commit()
 
     # ------------------------------------------------------------------
@@ -119,6 +121,9 @@ class ConversationService:
             role=MessageRole.USER,
             content=content,
         )
+        conv = self._conv_repo.get_active_by_id(conversation_id)
+        if conv:
+            conv.updated_at = datetime.now(timezone.utc)
         self._db.commit()
         self._db.refresh(msg)
         return msg
@@ -130,12 +135,22 @@ class ConversationService:
         metadata: Optional[dict] = None,
     ) -> ConversationMessage:
         """Persist an ASSISTANT message after successful LLM response + validation."""
+        recent = self.get_recent_messages(conversation_id, limit=1)
+        if recent:
+            last = recent[-1]
+            last_role = last.role.value if hasattr(last.role, "value") else str(last.role)
+            if last_role.upper() == "ASSISTANT" and last.content.strip() == content.strip():
+                return last
+
         msg = self._msg_repo.create_message(
             conversation_id=conversation_id,
             role=MessageRole.ASSISTANT,
             content=content,
             metadata=metadata,
         )
+        conv = self._conv_repo.get_active_by_id(conversation_id)
+        if conv:
+            conv.updated_at = datetime.now(timezone.utc)
         self._db.commit()
         self._db.refresh(msg)
         return msg

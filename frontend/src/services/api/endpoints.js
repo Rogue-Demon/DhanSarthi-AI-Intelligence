@@ -107,6 +107,7 @@ export const ENDPOINTS = {
   },
   ai: {
     advisor: '/ai/advisor',
+    transcribe: '/ai/transcribe',
     conversations: {
       list: '/ai/conversations',
       create: '/ai/conversations',
@@ -122,6 +123,7 @@ export const ENDPOINTS = {
     get: (id) => `/documents/${id}`,
     delete: (id) => `/documents/${id}`,
     process: (id) => `/documents/${id}/process`,
+    reclassify: (id) => `/documents/${id}/reclassify`,
     extraction: (id) => `/documents/${id}/extraction`,
     confirm: (id) => `/documents/${id}/confirm`,
   },
@@ -153,6 +155,12 @@ export const ENDPOINTS = {
     plan: '/investment-guide/plan',
     portfolioAnalysis: '/investment-guide/portfolio-analysis',
     marketStatus: '/investment-guide/market-status',
+  },
+  creditworthiness: {
+    get: '/creditworthiness',
+    recalculate: '/creditworthiness/recalculate',
+    history: '/creditworthiness/history',
+    shareConsent: '/creditworthiness/share-consent',
   },
 }
 

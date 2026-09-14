@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useProfile } from '@/hooks'
+import { useProfile, useSpeechToText } from '@/hooks'
 import {
   useConversationDetail,
   useSendMessage,
@@ -26,6 +26,7 @@ import { cn } from '@/utils'
  *   - Auto-creates conversation on initial prompt from welcome screen.
  *   - SSE streaming with seamless non-duplicating fallback.
  *   - Single history item per conversation thread.
+ *   - Speech-to-text voice input via browser Web Speech API.
  */
 export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
   const { profile } = useProfile()
@@ -41,6 +42,13 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isCreatingConv, setIsCreatingConv] = useState(false)
   const [expandedCalcMsgId, setExpandedCalcMsgId] = useState(null)
+
+  const speech = useSpeechToText({
+    lang: 'en-IN',
+    onTranscript: (updatedText) => {
+      setInputText(updatedText)
+    },
+  })
 
   const messagesEndRef = useRef(null)
   const abortControllerRef = useRef(null)
@@ -113,10 +121,18 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
   // 2. Append optimistic user message only if not already present in real messages
   if (optimisticMessages.length > 0) {
     for (const optMsg of optimisticMessages) {
-      const isAlreadyInReal = realMessages.some(
-        (m) =>
-          (m.role === 'USER' || m.role === 'user') && m.content.trim() === optMsg.content.trim()
-      )
+      const lastRealUserMsg = [...realMessages]
+        .reverse()
+        .find((m) => m.role === 'USER' || m.role === 'user')
+      const lastRealUserTime = lastRealUserMsg?.created_at
+        ? new Date(lastRealUserMsg.created_at).getTime()
+        : 0
+      const optMsgTime = optMsg?.created_at ? new Date(optMsg.created_at).getTime() : 0
+      const isAlreadyInReal =
+        lastRealUserMsg &&
+        lastRealUserMsg.content.trim() === optMsg.content.trim() &&
+        lastRealUserTime >= optMsgTime - 15000
+
       if (!isAlreadyInReal && !seenIds.has(optMsg.id)) {
         seenIds.add(optMsg.id)
         displayMessages.push(optMsg)
@@ -137,7 +153,8 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
     }
   }
 
-  const isBusy = isStreaming || sendMutation.isPending || isCreatingConv || isSubmitting
+  const isBusy =
+    isStreaming || sendMutation.isPending || isCreatingConv || isSubmitting || speech.isTranscribing
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const executeSend = async (targetConvId, text) => {
@@ -205,33 +222,8 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
         },
         onError: (err) => {
           if (activeConvIdRef.current !== reqConvId) return
-          console.warn('Stream interrupted or unsupported, assessing fallback:', err)
-
-          if (!streamStarted) {
-            // Stream produced 0 output: run standard fallback mutation cleanly
-            setStreamingMsg(null)
-            setIsStreaming(false)
-            sendMutation.mutate(
-              { message: text },
-              {
-                onSuccess: () => {
-                  queryClient.invalidateQueries({ queryKey: AI_KEYS.conversation(reqConvId) })
-                  queryClient.invalidateQueries({ queryKey: ['ai-conversations'] })
-                },
-                onSettled: () => {
-                  setOptimisticMessages([])
-                  setIsSubmitting(false)
-                },
-              }
-            )
-          } else {
-            // Partial stream output delivered: invalidate and clean up
-            queryClient.invalidateQueries({ queryKey: AI_KEYS.conversation(reqConvId) })
-            setStreamingMsg(null)
-            setOptimisticMessages([])
-            setIsStreaming(false)
-            setIsSubmitting(false)
-          }
+          console.warn('Stream interrupted or unsupported, falling back to standard API:', err)
+          // Fallback mutation is handled in catch block below to prevent duplicate execution
         },
       })
     } catch (err) {
@@ -260,6 +252,7 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
           }
         )
       } else {
+        queryClient.invalidateQueries({ queryKey: AI_KEYS.conversation(reqConvId) })
         setStreamingMsg(null)
         setOptimisticMessages([])
         setIsStreaming(false)
@@ -269,6 +262,9 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
   }
 
   const handleSend = async () => {
+    if (speech.isListening) {
+      speech.stopListening()
+    }
     const text = inputText.trim()
     if (!text || isBusy) return
 
@@ -276,7 +272,7 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
     if (!conversationId) {
       setIsCreatingConv(true)
       createMutation.mutate(
-        { title: text.slice(0, 80) },
+        { title: null },
         {
           onSuccess: (data) => {
             setIsCreatingConv(false)
@@ -298,6 +294,11 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
     executeSend(conversationId, text)
   }
 
+  const executeSendRef = useRef(executeSend)
+  useEffect(() => {
+    executeSendRef.current = executeSend
+  })
+
   // Handle initial send if state passed from navigation or prompt click
   useEffect(() => {
     if (location.state?.autoSendText && conversationId && !isSubmitting) {
@@ -305,7 +306,7 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
       // Clear location state to prevent re-sending on re-render
       navigate(location.pathname, { replace: true, state: {} })
       Promise.resolve().then(() => {
-        executeSend(conversationId, text)
+        executeSendRef.current(conversationId, text)
       })
     }
   }, [conversationId, location.state, location.pathname, navigate, isSubmitting])
@@ -337,7 +338,7 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
       setInputText(promptText)
       setIsCreatingConv(true)
       createMutation.mutate(
-        { title: promptText.slice(0, 80) },
+        { title: null },
         {
           onSuccess: (data) => {
             setIsCreatingConv(false)
@@ -416,6 +417,41 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
         {/* Welcome Input Area */}
         <div className="p-4 border-t border-border/80 bg-card/80 backdrop-blur-md shrink-0">
           <div className="max-w-3xl mx-auto flex flex-col gap-2">
+            {speech.error && (
+              <div className="flex items-center justify-between text-[11px] font-bold text-danger bg-danger/10 border border-danger/20 rounded-xl px-3 py-1.5">
+                <span className="flex items-center gap-1.5">
+                  <LucideIcons.AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  {speech.error}
+                </span>
+                <button onClick={speech.clearError} className="hover:opacity-80 p-0.5">
+                  <LucideIcons.X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Speech Recording / Transcribing Banners */}
+            {speech.isRecording && (
+              <div className="flex items-center justify-between text-[11px] font-bold text-danger bg-danger/10 border border-danger/20 rounded-xl px-3 py-1.5 animate-pulse">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-danger animate-ping" />
+                  Listening... Speak into your microphone. Click mic or Done when finished.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => speech.stopListening()}
+                  className="text-[10px] font-black uppercase tracking-wider bg-danger text-white px-2 py-0.5 rounded-lg hover:bg-danger/90 transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            )}
+            {speech.isTranscribing && (
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary bg-primary/10 border border-primary/20 rounded-xl px-3 py-1.5">
+                <LucideIcons.Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-primary" />
+                <span>Converting speech to text...</span>
+              </div>
+            )}
+
             <div className="relative clay-surface bg-card border border-border rounded-2xl p-2.5 shadow-sm focus-within:border-primary/40 transition-colors flex items-end gap-2">
               <textarea
                 rows={2}
@@ -437,6 +473,48 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
                     <LucideIcons.X className="h-4 w-4" />
                   </button>
                 )}
+
+                {/* Speech-to-text mic button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (speech.isRecording) {
+                      speech.stopListening()
+                    } else if (!speech.isTranscribing) {
+                      speech.startListening(inputText)
+                    }
+                  }}
+                  disabled={!speech.isSupported || isBusy}
+                  className={cn(
+                    'p-2 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center',
+                    speech.isRecording &&
+                      'bg-danger/20 text-danger border border-danger/40 animate-pulse shadow-sm',
+                    speech.isTranscribing &&
+                      'bg-primary/20 text-primary border border-primary/40 shadow-sm',
+                    !speech.isRecording &&
+                      !speech.isTranscribing &&
+                      'text-text-muted hover:text-text-primary hover:bg-muted/80 border border-transparent',
+                    (!speech.isSupported || (isBusy && !speech.isRecording)) &&
+                      'opacity-40 cursor-not-allowed'
+                  )}
+                  title={
+                    !speech.isSupported
+                      ? 'Voice input is not supported in this browser'
+                      : speech.isTranscribing
+                        ? 'Transcribing audio...'
+                        : speech.isRecording
+                          ? 'Recording... Click to stop & transcribe'
+                          : 'Speak (Voice Input)'
+                  }
+                >
+                  {speech.isTranscribing ? (
+                    <LucideIcons.Loader2 className="h-4 w-4 text-primary animate-spin" />
+                  ) : speech.isRecording ? (
+                    <LucideIcons.MicOff className="h-4 w-4 text-danger animate-pulse" />
+                  ) : (
+                    <LucideIcons.Mic className="h-4 w-4" />
+                  )}
+                </button>
 
                 <Button
                   variant="gradient"
@@ -817,6 +895,41 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
       {/* Input Area */}
       <div className="p-4 border-t border-border/80 bg-card/80 backdrop-blur-md shrink-0">
         <div className="max-w-3xl mx-auto flex flex-col gap-2">
+          {speech.error && (
+            <div className="flex items-center justify-between text-[11px] font-bold text-danger bg-danger/10 border border-danger/20 rounded-xl px-3 py-1.5">
+              <span className="flex items-center gap-1.5">
+                <LucideIcons.AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                {speech.error}
+              </span>
+              <button onClick={speech.clearError} className="hover:opacity-80 p-0.5">
+                <LucideIcons.X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Speech Recording / Transcribing Banners */}
+          {speech.isRecording && (
+            <div className="flex items-center justify-between text-[11px] font-bold text-danger bg-danger/10 border border-danger/20 rounded-xl px-3 py-1.5 animate-pulse">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-danger animate-ping" />
+                Listening... Speak into your microphone. Click mic or Done when finished.
+              </span>
+              <button
+                type="button"
+                onClick={() => speech.stopListening()}
+                className="text-[10px] font-black uppercase tracking-wider bg-danger text-white px-2 py-0.5 rounded-lg hover:bg-danger/90 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          )}
+          {speech.isTranscribing && (
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-primary bg-primary/10 border border-primary/20 rounded-xl px-3 py-1.5">
+              <LucideIcons.Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-primary" />
+              <span>Converting speech to text...</span>
+            </div>
+          )}
+
           {/* Quick suggestions strip */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
             {advisorConfig.suggestedPrompts.slice(0, 3).map((p, idx) => (
@@ -853,6 +966,48 @@ export function ChatWorkspace({ conversationId = null, initialPrompt = '' }) {
                   <LucideIcons.X className="h-4 w-4" />
                 </button>
               )}
+
+              {/* Speech-to-text mic button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (speech.isRecording) {
+                    speech.stopListening()
+                  } else if (!speech.isTranscribing) {
+                    speech.startListening(inputText)
+                  }
+                }}
+                disabled={!speech.isSupported || isBusy}
+                className={cn(
+                  'p-2 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center',
+                  speech.isRecording &&
+                    'bg-danger/20 text-danger border border-danger/40 animate-pulse shadow-sm',
+                  speech.isTranscribing &&
+                    'bg-primary/20 text-primary border border-primary/40 shadow-sm',
+                  !speech.isRecording &&
+                    !speech.isTranscribing &&
+                    'text-text-muted hover:text-text-primary hover:bg-muted/80 border border-transparent',
+                  (!speech.isSupported || (isBusy && !speech.isRecording)) &&
+                    'opacity-40 cursor-not-allowed'
+                )}
+                title={
+                  !speech.isSupported
+                    ? 'Voice input is not supported in this browser'
+                    : speech.isTranscribing
+                      ? 'Transcribing audio...'
+                      : speech.isRecording
+                        ? 'Recording... Click to stop & transcribe'
+                        : 'Speak (Voice Input)'
+                }
+              >
+                {speech.isTranscribing ? (
+                  <LucideIcons.Loader2 className="h-4 w-4 text-primary animate-spin" />
+                ) : speech.isRecording ? (
+                  <LucideIcons.MicOff className="h-4 w-4 text-danger animate-pulse" />
+                ) : (
+                  <LucideIcons.Mic className="h-4 w-4" />
+                )}
+              </button>
 
               {isStreaming ? (
                 <Button

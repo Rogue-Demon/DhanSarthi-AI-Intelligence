@@ -417,7 +417,12 @@ class DashboardService:
             ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         # Net worth
-        net_worth = m.net_worth.net_worth if m.net_worth else None
+        net_worth = None
+        if m.net_worth is not None:
+            if isinstance(m.net_worth, Decimal):
+                net_worth = m.net_worth
+            elif hasattr(m.net_worth, "net_worth"):
+                net_worth = m.net_worth.net_worth
 
         # Cash flow sign
         cash_flow_positive: Optional[bool] = None

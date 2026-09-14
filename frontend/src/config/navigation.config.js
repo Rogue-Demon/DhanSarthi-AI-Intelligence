@@ -64,6 +64,15 @@ export const navigationConfig = {
       featureFlag: null,
     },
     {
+      label: 'Creditworthiness',
+      icon: 'ShieldCheck',
+      path: '/creditworthiness',
+      permission: null,
+      children: null,
+      badge: 'DCS',
+      featureFlag: null,
+    },
+    {
       label: 'Settings',
       icon: 'Settings',
       path: '/settings',
@@ -138,6 +147,15 @@ export const navigationConfig = {
       featureFlag: null,
     },
     {
+      label: 'Creditworthiness',
+      icon: 'ShieldCheck',
+      path: '/creditworthiness',
+      permission: null,
+      children: null,
+      badge: 'DCS',
+      featureFlag: null,
+    },
+    {
       label: 'Settings',
       icon: 'Settings',
       path: '/settings',
@@ -209,6 +227,15 @@ export const navigationConfig = {
       permission: null,
       children: null,
       badge: null,
+      featureFlag: null,
+    },
+    {
+      label: 'Creditworthiness',
+      icon: 'ShieldCheck',
+      path: '/creditworthiness',
+      permission: null,
+      children: null,
+      badge: 'DCS',
       featureFlag: null,
     },
     {

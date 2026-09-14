@@ -7,6 +7,7 @@ import {
   useDocuments,
   useUploadDocument,
   useProcessDocument,
+  useReclassifyDocument,
   useDocumentExtraction,
   useConfirmDocument,
   useDeleteDocument,
@@ -30,10 +31,45 @@ function formatDocType(type) {
     LOAN_STATEMENT: 'Loan Statement',
     INVESTMENT_STATEMENT: 'Investment Statement',
     TAX_DOCUMENT: 'Tax Document',
-    BILL: 'Utility / Invoice Bill',
+    BILL: 'Utility Bill',
+    INVOICE: 'Invoice',
+    INSURANCE_DOCUMENT: 'Insurance Document',
+    EXPENSE_RECEIPT: 'Expense Receipt',
+    BUSINESS_FINANCIAL_DOCUMENT: 'Business Financial Document',
     UNKNOWN: 'Unclassified Document',
   }
   return map[type] || type
+}
+
+// Confidence display formatting helper
+function getConfidenceDisplay(docType, confidence) {
+  if (docType === 'UNKNOWN' || !confidence || confidence <= 0) {
+    return {
+      label: 'Unclassified (0%)',
+      color: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+      icon: LucideIcons.HelpCircle,
+    }
+  }
+  const pct = Math.round(confidence * 100)
+  if (pct >= 80) {
+    return {
+      label: `${pct}% High Confidence`,
+      color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+      icon: LucideIcons.ShieldCheck,
+    }
+  } else if (pct >= 60) {
+    return {
+      label: `${pct}% Medium Confidence`,
+      color: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
+      icon: LucideIcons.Info,
+    }
+  } else {
+    return {
+      label: `${pct}% Needs Verification`,
+      color: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+      icon: LucideIcons.AlertTriangle,
+    }
+  }
 }
 
 // Icon for document type
@@ -51,6 +87,14 @@ function getDocTypeIcon(type) {
       return LucideIcons.ReceiptText
     case 'BILL':
       return LucideIcons.FileSpreadsheet
+    case 'INVOICE':
+      return LucideIcons.FileCheck
+    case 'INSURANCE_DOCUMENT':
+      return LucideIcons.ShieldCheck
+    case 'EXPENSE_RECEIPT':
+      return LucideIcons.Receipt
+    case 'BUSINESS_FINANCIAL_DOCUMENT':
+      return LucideIcons.Building2
     default:
       return LucideIcons.FileText
   }
@@ -106,6 +150,8 @@ export function Documents() {
   const [dragActive, setDragActive] = useState(false)
   const [uploadError, setUploadError] = useState(null)
   const [reviewDocId, setReviewDocId] = useState(null)
+  const [selectedOverrideType, setSelectedOverrideType] = useState('SALARY_SLIP')
+  const [editedFields, setEditedFields] = useState({})
   const [deselectedFields, setDeselectedFields] = useState([])
   const [deselectedTxs, setDeselectedTxs] = useState([])
   const [deselectedIncomeIds, setDeselectedIncomeIds] = useState([])
@@ -120,6 +166,7 @@ export function Documents() {
 
   const uploadMutation = useUploadDocument()
   const processMutation = useProcessDocument()
+  const reclassifyMutation = useReclassifyDocument()
   const deleteMutation = useDeleteDocument()
   const confirmMutation = useConfirmDocument()
 
@@ -145,12 +192,23 @@ export function Documents() {
 
   const confirmedFieldNames = allFieldNames.filter((name) => !deselectedFields.includes(name))
   const confirmedTxIds = allTxIds.filter((id) => !deselectedTxs.includes(id))
-  const confirmedIncomes = (extractionData?.income_candidates || []).filter(
-    (c) => !deselectedIncomeIds.includes(c.candidate_id)
-  )
-  const confirmedExpenses = (extractionData?.expense_candidates || []).filter(
-    (c) => !deselectedExpenseIds.includes(c.candidate_id)
-  )
+
+  // Incorporate user-edited values if modified
+  const confirmedIncomes = (extractionData?.income_candidates || [])
+    .filter((c) => !deselectedIncomeIds.includes(c.candidate_id))
+    .map((c) => {
+      const editedVal =
+        editedFields[c.candidate_id] || editedFields['salary'] || editedFields['net_salary']
+      return editedVal !== undefined ? { ...c, amount: parseFloat(editedVal) || c.amount } : c
+    })
+
+  const confirmedExpenses = (extractionData?.expense_candidates || [])
+    .filter((c) => !deselectedExpenseIds.includes(c.candidate_id))
+    .map((c) => {
+      const editedVal = editedFields[c.candidate_id] || editedFields['total_amount']
+      return editedVal !== undefined ? { ...c, amount: parseFloat(editedVal) || c.amount } : c
+    })
+
   const confirmedAssets = (extractionData?.asset_candidates || []).filter(
     (c) => !deselectedAssetIds.includes(c.candidate_id)
   )
@@ -226,6 +284,7 @@ export function Documents() {
   // ── Review Modal Handlers ─────────────────────────────────────────────────
   const handleOpenReview = (doc) => {
     setReviewDocId(doc.id)
+    setEditedFields({})
     setDeselectedFields([])
     setDeselectedTxs([])
     setDeselectedIncomeIds([])
@@ -291,6 +350,29 @@ export function Documents() {
         setReviewDocId(docId)
       },
     })
+  }
+
+  const getImportButtonLabel = () => {
+    if (confirmMutation.isPending) return 'Importing Records...'
+    if (extractionData?.document_type === 'SALARY_SLIP') {
+      return `CONFIRM & IMPORT TO INCOME (${totalSelectedCount} SELECTED)`
+    }
+    if (['BILL', 'INVOICE', 'EXPENSE_RECEIPT'].includes(extractionData?.document_type)) {
+      return `CONFIRM & IMPORT TO EXPENSES (${totalSelectedCount} SELECTED)`
+    }
+    if (extractionData?.document_type === 'BANK_STATEMENT') {
+      return `CONFIRM & IMPORT TRANSACTIONS (${totalSelectedCount} SELECTED)`
+    }
+    if (extractionData?.document_type === 'INVESTMENT_STATEMENT') {
+      return `CONFIRM & IMPORT TO ASSETS (${totalSelectedCount} SELECTED)`
+    }
+    if (extractionData?.document_type === 'LOAN_STATEMENT') {
+      return `CONFIRM & IMPORT TO LIABILITIES (${totalSelectedCount} SELECTED)`
+    }
+    if (extractionData?.document_type === 'UNKNOWN') {
+      return `SELECT DOCUMENT TYPE TO IMPORT`
+    }
+    return `CONFIRM & IMPORT (${totalSelectedCount} SELECTED)`
   }
 
   return (
@@ -784,52 +866,111 @@ export function Documents() {
           {!isLoadingExtraction && extractionData && !confirmationSuccess && (
             <div className="flex flex-col gap-6 text-left">
               {/* Classification Info Header */}
-              <div className="clay-surface bg-card p-4 rounded-2xl border border-border flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-                    <LucideIcons.Tag className="h-4 w-4" />
+              {(() => {
+                const confInfo = getConfidenceDisplay(
+                  extractionData.document_type,
+                  extractionData.classification_confidence
+                )
+                const ConfIcon = confInfo.icon
+
+                return (
+                  <div className="clay-surface bg-card p-4 rounded-2xl border border-border flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                        <LucideIcons.Tag className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">
+                          Classified Type
+                        </span>
+                        <span className="text-xs font-black text-text-primary">
+                          {formatDocType(extractionData.document_type)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className={cn('p-2.5 rounded-xl', confInfo.color)}>
+                        <ConfIcon className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">
+                          Confidence
+                        </span>
+                        <span className={cn('text-xs font-black', confInfo.color.split(' ')[0])}>
+                          {confInfo.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    {(extractionData.period_start || extractionData.period_end) && (
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-600">
+                          <LucideIcons.Calendar className="h-4 w-4" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">
+                            Statement Period
+                          </span>
+                          <span className="text-xs font-black text-text-primary">
+                            {extractionData.period_start || 'Start'} to{' '}
+                            {extractionData.period_end || 'End'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">
-                      Classified Type
+                )
+              })()}
+
+              {/* Unknown Document Reclassification Callout */}
+              {extractionData.document_type === 'UNKNOWN' && (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-amber-600">
+                    <LucideIcons.HelpCircle className="h-5 w-5 shrink-0" />
+                    <span className="text-xs font-black uppercase tracking-wider">
+                      Document Could Not Be Automatically Classified
                     </span>
-                    <span className="text-xs font-black text-text-primary">
-                      {formatDocType(extractionData.document_type)}
-                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-text-primary">
+                    Please select the document type below to run schema extraction:
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <select
+                      value={selectedOverrideType}
+                      onChange={(e) => setSelectedOverrideType(e.target.value)}
+                      className="clay-surface bg-card text-xs font-bold text-text-primary p-2.5 rounded-xl border border-border flex-1 w-full"
+                    >
+                      <option value="SALARY_SLIP">Salary Slip</option>
+                      <option value="BILL">Utility Bill</option>
+                      <option value="EXPENSE_RECEIPT">Expense Receipt</option>
+                      <option value="INVOICE">Invoice</option>
+                      <option value="TAX_DOCUMENT">Tax Document (Form 16 / ITR)</option>
+                      <option value="BANK_STATEMENT">Bank Statement</option>
+                      <option value="INVESTMENT_STATEMENT">Investment Statement</option>
+                      <option value="LOAN_STATEMENT">Loan Statement</option>
+                      <option value="INSURANCE_DOCUMENT">Insurance Document</option>
+                      <option value="BUSINESS_FINANCIAL_DOCUMENT">
+                        Business Financial Document
+                      </option>
+                    </select>
+                    <Button
+                      variant="primary"
+                      size="xs"
+                      onClick={() =>
+                        reclassifyMutation.mutate({
+                          documentId: reviewDocId,
+                          documentType: selectedOverrideType,
+                        })
+                      }
+                      disabled={reclassifyMutation.isPending}
+                      className="font-black uppercase text-xs shrink-0 w-full sm:w-auto"
+                    >
+                      {reclassifyMutation.isPending ? 'Re-extracting...' : 'Re-extract Fields'}
+                    </Button>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600">
-                    <LucideIcons.ShieldCheck className="h-4 w-4" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">
-                      Confidence
-                    </span>
-                    <span className="text-xs font-black text-emerald-600">
-                      {Math.round(extractionData.classification_confidence * 100)}% High
-                    </span>
-                  </div>
-                </div>
-
-                {(extractionData.period_start || extractionData.period_end) && (
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-600">
-                      <LucideIcons.Calendar className="h-4 w-4" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">
-                        Statement Period
-                      </span>
-                      <span className="text-xs font-black text-text-primary">
-                        {extractionData.period_start || 'Start'} to{' '}
-                        {extractionData.period_end || 'End'}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Warnings Banner if any */}
               {extractionData.warnings && extractionData.warnings.length > 0 && (
@@ -858,18 +999,20 @@ export function Documents() {
                   <div className="grid grid-cols-1 gap-3">
                     {extractionData.income_candidates.map((inc) => {
                       const isSelected = !deselectedIncomeIds.includes(inc.candidate_id)
+                      const displayAmount =
+                        editedFields[inc.candidate_id] !== undefined
+                          ? editedFields[inc.candidate_id]
+                          : editedFields['salary'] !== undefined
+                            ? editedFields['salary']
+                            : editedFields['net_salary'] !== undefined
+                              ? editedFields['net_salary']
+                              : inc.amount
+
                       return (
                         <div
                           key={inc.candidate_id}
-                          onClick={() =>
-                            setDeselectedIncomeIds((prev) =>
-                              prev.includes(inc.candidate_id)
-                                ? prev.filter((id) => id !== inc.candidate_id)
-                                : [...prev, inc.candidate_id]
-                            )
-                          }
                           className={cn(
-                            'p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-wrap items-center justify-between gap-3',
+                            'p-3.5 rounded-2xl border transition-all flex flex-wrap items-center justify-between gap-3',
                             isSelected
                               ? 'bg-emerald-500/10 border-emerald-500/40 shadow-xs'
                               : 'bg-card border-border hover:border-border/80 opacity-60'
@@ -879,7 +1022,13 @@ export function Documents() {
                             <input
                               type="checkbox"
                               checked={isSelected}
-                              onChange={() => {}}
+                              onChange={() =>
+                                setDeselectedIncomeIds((prev) =>
+                                  prev.includes(inc.candidate_id)
+                                    ? prev.filter((id) => id !== inc.candidate_id)
+                                    : [...prev, inc.candidate_id]
+                                )
+                              }
                               className="rounded accent-emerald-600 h-4 w-4 cursor-pointer"
                             />
                             <div className="flex flex-col">
@@ -891,12 +1040,20 @@ export function Documents() {
                               </span>
                             </div>
                           </div>
-                          <span className="text-sm font-black text-emerald-600">
-                            ₹
-                            {Number(inc.amount).toLocaleString('en-IN', {
-                              minimumFractionDigits: 2,
-                            })}
-                          </span>
+                          <div className="flex items-center gap-1 font-black text-emerald-600 text-sm">
+                            <span>₹</span>
+                            <input
+                              type="text"
+                              value={displayAmount}
+                              onChange={(e) =>
+                                setEditedFields((prev) => ({
+                                  ...prev,
+                                  [inc.candidate_id]: e.target.value,
+                                }))
+                              }
+                              className="bg-card text-xs font-black text-emerald-600 p-1 rounded-lg border border-emerald-500/30 w-28 text-right focus:outline-none"
+                            />
+                          </div>
                         </div>
                       )
                     })}
@@ -915,18 +1072,18 @@ export function Documents() {
                     <div className="grid grid-cols-1 gap-3">
                       {extractionData.expense_candidates.map((exp) => {
                         const isSelected = !deselectedExpenseIds.includes(exp.candidate_id)
+                        const displayAmount =
+                          editedFields[exp.candidate_id] !== undefined
+                            ? editedFields[exp.candidate_id]
+                            : editedFields['total_amount'] !== undefined
+                              ? editedFields['total_amount']
+                              : exp.amount
+
                         return (
                           <div
                             key={exp.candidate_id}
-                            onClick={() =>
-                              setDeselectedExpenseIds((prev) =>
-                                prev.includes(exp.candidate_id)
-                                  ? prev.filter((id) => id !== exp.candidate_id)
-                                  : [...prev, exp.candidate_id]
-                              )
-                            }
                             className={cn(
-                              'p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-wrap items-center justify-between gap-3',
+                              'p-3.5 rounded-2xl border transition-all flex flex-wrap items-center justify-between gap-3',
                               isSelected
                                 ? 'bg-rose-500/10 border-rose-500/40 shadow-xs'
                                 : 'bg-card border-border hover:border-border/80 opacity-60'
@@ -936,7 +1093,13 @@ export function Documents() {
                               <input
                                 type="checkbox"
                                 checked={isSelected}
-                                onChange={() => {}}
+                                onChange={() =>
+                                  setDeselectedExpenseIds((prev) =>
+                                    prev.includes(exp.candidate_id)
+                                      ? prev.filter((id) => id !== exp.candidate_id)
+                                      : [...prev, exp.candidate_id]
+                                  )
+                                }
                                 className="rounded accent-rose-600 h-4 w-4 cursor-pointer"
                               />
                               <div className="flex flex-col">
@@ -948,12 +1111,20 @@ export function Documents() {
                                 </span>
                               </div>
                             </div>
-                            <span className="text-sm font-black text-rose-600">
-                              ₹
-                              {Number(exp.amount).toLocaleString('en-IN', {
-                                minimumFractionDigits: 2,
-                              })}
-                            </span>
+                            <div className="flex items-center gap-1 font-black text-rose-600 text-sm">
+                              <span>₹</span>
+                              <input
+                                type="text"
+                                value={displayAmount}
+                                onChange={(e) =>
+                                  setEditedFields((prev) => ({
+                                    ...prev,
+                                    [exp.candidate_id]: e.target.value,
+                                  }))
+                                }
+                                className="bg-card text-xs font-black text-rose-600 p-1 rounded-lg border border-rose-500/30 w-28 text-right focus:outline-none"
+                              />
+                            </div>
                           </div>
                         )
                       })}
@@ -1111,41 +1282,54 @@ export function Documents() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {extractionData.fields.map((f, idx) => {
                       const isSelected = confirmedFieldNames.includes(f.name)
+                      const currentValue =
+                        editedFields[f.name] !== undefined ? editedFields[f.name] : f.value
+
                       return (
                         <div
                           key={idx}
-                          onClick={() => handleToggleField(f.name)}
                           className={cn(
-                            'p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3',
+                            'p-3.5 rounded-2xl border transition-all flex flex-col gap-2',
                             isSelected
                               ? 'bg-primary/5 border-primary/40 shadow-xs'
                               : 'bg-card border-border hover:border-border/80'
                           )}
                         >
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => handleToggleField(f.name)}
-                              className="rounded accent-primary h-4 w-4 cursor-pointer"
-                            />
-                            <div className="flex flex-col">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleField(f.name)}
+                                className="rounded accent-primary h-4 w-4 cursor-pointer"
+                              />
                               <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">
                                 {f.name.replace(/_/g, ' ')}
                               </span>
-                              <span className="text-xs font-black text-text-primary">
-                                {typeof f.value === 'number' || typeof f.value === 'string'
-                                  ? f.value
-                                  : JSON.stringify(f.value)}
-                              </span>
                             </div>
+                            <Badge
+                              variant="secondary"
+                              className="text-[9px] font-black bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                            >
+                              {Math.round(f.confidence * 100)}% Conf
+                            </Badge>
                           </div>
-                          <Badge
-                            variant="secondary"
-                            className="text-[9px] font-black bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                          >
-                            {Math.round(f.confidence * 100)}% Conf
-                          </Badge>
+
+                          <input
+                            type="text"
+                            value={currentValue}
+                            onChange={(e) =>
+                              setEditedFields((prev) => ({ ...prev, [f.name]: e.target.value }))
+                            }
+                            className="clay-surface bg-card text-xs font-black text-text-primary p-2 rounded-xl border border-border w-full focus:border-primary focus:outline-none"
+                            placeholder="Field value"
+                          />
+
+                          {f.source_text_ref && (
+                            <span className="text-[10px] font-bold text-text-muted italic truncate">
+                              Source: "{f.source_text_ref}"
+                            </span>
+                          )}
                         </div>
                       )
                     })}
@@ -1303,7 +1487,10 @@ export function Documents() {
                 size="sm"
                 onClick={handleConfirmImport}
                 disabled={
-                  isLoadingExtraction || confirmMutation.isPending || totalSelectedCount === 0
+                  isLoadingExtraction ||
+                  confirmMutation.isPending ||
+                  totalSelectedCount === 0 ||
+                  extractionData?.document_type === 'UNKNOWN'
                 }
                 iconLeft={
                   confirmMutation.isPending ? (
@@ -1314,9 +1501,7 @@ export function Documents() {
                 }
                 className="font-black uppercase tracking-wider text-xs"
               >
-                {confirmMutation.isPending
-                  ? 'Importing Records...'
-                  : `Confirm & Import (${totalSelectedCount} Selected)`}
+                {getImportButtonLabel()}
               </Button>
             </>
           )}

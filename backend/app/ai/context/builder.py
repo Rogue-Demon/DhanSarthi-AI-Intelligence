@@ -171,7 +171,7 @@ class AIContextBuilder:
                 emergency_fund_months=fh.emergency_fund_months if (needs_net_worth or needs_cash_flow) else None,
                 budget_utilization_percent=fh.budget_utilization_percent if needs_budgets else None,
                 goal_completion_rate_percent=fh.goal_completion_rate_percent if needs_goals else None,
-                net_worth=fh.net_worth if needs_net_worth else None,
+                net_worth=(fh.net_worth.net_worth if hasattr(fh.net_worth, "net_worth") else fh.net_worth) if needs_net_worth else None,
                 cash_flow_positive=fh.cash_flow_positive if needs_cash_flow else None,
             )
 
@@ -294,7 +294,8 @@ class AIContextBuilder:
         # ── System instructions ───────────────────────────────────────────────
         system_instructions = (
             "System Instructions:\n"
-            "  - You are DhanSarthi, an intelligent financial data & decision-support assistant.\n"
+            "  - You are DhanSarthi, an intelligent financial data & decision-support assistant focused strictly on personal finance, investments, savings, budgeting, loans, debt, taxes, insurance, financial education, and business finance.\n"
+            "  - Do not answer unrelated general-knowledge, political, sports, entertainment, programming, or non-financial questions. Politely redirect such requests toward financial topics.\n"
             "  - You MUST answer the user's financial and investment questions directly, accurately, and thoroughly using the provided financial context and Live Market Data.\n"
             "  - Real-time Market Data (Authoritative Values) is provided directly in this prompt when available. State the exact prices and numbers given in Attached Live Market Data when present. NEVER output generic refusals such as 'I cannot provide real-time market data', 'I am unable to provide current prices', or 'I am an AI assistant'.\n"
             "  - Combine the user's personal financial numbers (from <personal_financial_context>) with current market information (from Live Market Data) whenever relevant to give personalized insights.\n"

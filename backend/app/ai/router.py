@@ -23,6 +23,7 @@ class QueryIntent(str, enum.Enum):
     GENERAL_FINANCE = "GENERAL_FINANCE"
     PERSONAL_FINANCE = "PERSONAL_FINANCE"
     MIXED = "MIXED"
+    OUT_OF_SCOPE = "OUT_OF_SCOPE"
 
 
 class SubIntent(str, enum.Enum):

@@ -142,6 +142,16 @@ class FieldMappingRegistry:
             explanation="Employer name used as income source name."
         ))
 
+        self.register(FieldMappingRule(
+            field_name="salary",
+            doc_type=DocumentType.SALARY_SLIP,
+            destination_type=DestinationType.INCOME,
+            behavior=FieldImportBehavior.FINANCIAL_RECORD,
+            destination_field="amount",
+            default_category="Salary",
+            explanation="Salary amount imported as primary income cash inflow."
+        ))
+
         # ------------------------------------------------------------------
         # BILL / INVOICE / EXPENSE MAPPINGS
         # ------------------------------------------------------------------
@@ -155,6 +165,24 @@ class FieldMappingRegistry:
             explanation="Bill total amount mapped to Expense."
         ))
         self.register(FieldMappingRule(
+            field_name="total_amount",
+            doc_type=DocumentType.INVOICE,
+            destination_type=DestinationType.EXPENSE,
+            behavior=FieldImportBehavior.FINANCIAL_RECORD,
+            destination_field="amount",
+            default_category="Business Expense",
+            explanation="Invoice total amount mapped to Expense."
+        ))
+        self.register(FieldMappingRule(
+            field_name="total_amount",
+            doc_type=DocumentType.EXPENSE_RECEIPT,
+            destination_type=DestinationType.EXPENSE,
+            behavior=FieldImportBehavior.FINANCIAL_RECORD,
+            destination_field="amount",
+            default_category="General Expense",
+            explanation="Receipt total amount mapped to Expense."
+        ))
+        self.register(FieldMappingRule(
             field_name="amount_due",
             doc_type=DocumentType.BILL,
             destination_type=DestinationType.EXPENSE,
@@ -165,19 +193,11 @@ class FieldMappingRegistry:
         ))
         self.register(FieldMappingRule(
             field_name="vendor",
-            doc_type=DocumentType.BILL,
+            doc_type=None,
             destination_type=DestinationType.METADATA,
             behavior=FieldImportBehavior.METADATA,
             destination_field="merchant",
-            explanation="Vendor name used as expense merchant."
-        ))
-        self.register(FieldMappingRule(
-            field_name="biller_name",
-            doc_type=DocumentType.BILL,
-            destination_type=DestinationType.METADATA,
-            behavior=FieldImportBehavior.METADATA,
-            destination_field="merchant",
-            explanation="Biller name used as expense merchant."
+            explanation="Vendor/Merchant name used as expense merchant."
         ))
 
         # ------------------------------------------------------------------

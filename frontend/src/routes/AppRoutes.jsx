@@ -11,6 +11,7 @@ import NotFound from './NotFound'
 const Dashboard = lazy(() => import('@/pages/Dashboard/Dashboard'))
 const Profile = lazy(() => import('@/pages/Profile/Profile'))
 const Documents = lazy(() => import('@/pages/Documents/Documents'))
+const Creditworthiness = lazy(() => import('@/pages/Creditworthiness/Creditworthiness'))
 
 const SettingsLayout = lazy(() => import('@/pages/Settings/SettingsLayout'))
 const SettingsProfile = lazy(() => import('@/pages/Settings/ProfileSettings'))
@@ -120,6 +121,10 @@ export const router = createBrowserRouter([
           {
             path: 'documents',
             element: <LazyLoader component={Documents} />,
+          },
+          {
+            path: 'creditworthiness',
+            element: <LazyLoader component={Creditworthiness} />,
           },
           {
             path: 'finance',

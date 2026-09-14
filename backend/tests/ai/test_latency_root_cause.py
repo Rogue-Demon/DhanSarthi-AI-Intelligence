@@ -211,5 +211,5 @@ async def test_benchmark_runner_and_report_generation(tmp_path):
 
         # Verify no credentials or private numbers in report
         if settings.ai_provider_api_key:
-            assert settings.ai_provider_api_key not in report_str
+            assert settings.ai_provider_api_key not in str(report)
         assert len(report["unsafe_optimizations_rejected"]) >= 5

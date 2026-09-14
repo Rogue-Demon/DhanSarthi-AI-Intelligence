@@ -216,3 +216,61 @@ class DocumentService:
                 identifier=f"for document {document_id}"
             )
         return extraction
+
+    async def reclassify_document(
+        self, document_id: int, user_id: int, target_type: DocumentType
+    ) -> DocumentExtraction:
+        """
+        Manually override document classification and re-run extraction with target schema.
+        """
+        doc = self.get_document(document_id, user_id)
+        doc.status = DocumentStatus.PROCESSING
+        self._db.commit()
+
+        try:
+            data = await self._storage.get(doc.storage_key)
+
+            extractor = get_extractor(doc.mime_type)
+            extracted = extractor.extract(data)
+
+            info_res = self._extractor.extract_info(target_type, extracted)
+            self._normalizer.normalize(info_res)
+            warnings = self._validator.validate(self._db, user_id, info_res)
+
+            self._ext_repo.remove_for_document(document_id)
+
+            serialized_fields = [f.model_dump(mode="json") for f in info_res.fields]
+            serialized_txs = [t.model_dump(mode="json") for t in info_res.transactions]
+
+            extraction_record = DocumentExtraction(
+                document_id=document_id,
+                extraction_version="1.0.0",
+                document_type=target_type,
+                classification_confidence=1.0,
+                extracted_fields=serialized_fields,
+                extracted_transactions=serialized_txs,
+                warnings=warnings,
+                raw_page_count=extracted.page_count,
+                period_start=info_res.period_start,
+                period_end=info_res.period_end,
+            )
+
+            doc.document_type = target_type
+            doc.processed_at = datetime.datetime.now(datetime.timezone.utc)
+            doc.extractor_version = "1.0.0"
+            doc.status = DocumentStatus.REVIEW_REQUIRED if warnings else DocumentStatus.EXTRACTED
+
+            with handle_db_exceptions(resource="DocumentExtraction"):
+                self._ext_repo.add(extraction_record)
+                self._db.commit()
+
+            self._db.refresh(extraction_record)
+            return extraction_record
+
+        except Exception as exc:
+            doc.status = DocumentStatus.FAILED
+            self._db.commit()
+            if isinstance(exc, ExtractionFailedError):
+                raise
+            raise ExtractionFailedError(f"Document reclassification pipeline failed: {str(exc)}") from exc
+

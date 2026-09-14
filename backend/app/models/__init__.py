@@ -26,6 +26,15 @@ from app.models.conversation import Conversation, ConversationMessage
 from app.models.financial_document import FinancialDocument, DocumentExtraction
 from app.models.secure_access_token import SecureAccessToken
 from app.models.investment_plan import InvestmentPlan
+from app.models.creditworthiness import (
+    CreditProfile,
+    CreditScoreSnapshot,
+    CreditShareConsent,
+    CreditStatus,
+    RiskBand,
+    LoanReadinessState,
+    CreditConfidenceLevel,
+)
 
 __all__ = [
     "User",
@@ -49,5 +58,12 @@ __all__ = [
     "FinancialDocument",
     "DocumentExtraction",
     "SecureAccessToken",
+    "CreditProfile",
+    "CreditScoreSnapshot",
+    "CreditShareConsent",
+    "CreditStatus",
+    "RiskBand",
+    "LoanReadinessState",
+    "CreditConfidenceLevel",
 ]
 

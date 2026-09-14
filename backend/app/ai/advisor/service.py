@@ -159,6 +159,18 @@ class AIAdvisorService:
         understanding = self._understanding.analyze(request.message, tracker=tracker)
         intent = understanding.intent
 
+        # Fast short-circuit if query is non-financial (Domain Guard Protection)
+        if not getattr(understanding, "is_financial", True):
+            refusal_text = getattr(understanding, "refusal_message", None) or (
+                "I’m DhanSarthi AI, your financial advisor, so I’m focused on helping with money and financial decisions. "
+                "I can’t help with non-financial questions, but I’d be happy to help with budgeting, savings, investments, loans, taxes, or your financial goals."
+            )
+            return AIAdvisorResponse(
+                response=refusal_text,
+                conversation_id=conv_id,
+                sources=[],
+            )
+
         # Financial context
         full_facts = self._dash.build_dashboard(user_id=user_id)
 
@@ -500,6 +512,53 @@ class AIAdvisorService:
         # Analyze query using Query Understanding Layer
         understanding = self._understanding.analyze(request.message, history=history, tracker=tracker)
         intent = understanding.intent
+
+        # Fast short-circuit if query is non-financial (Domain Guard Protection)
+        if not getattr(understanding, "is_financial", True):
+            refusal_text = getattr(understanding, "refusal_message", None) or (
+                "I’m DhanSarthi AI, your financial advisor, so I’m focused on helping with money and financial decisions. "
+                "I can’t help with non-financial questions, but I’d be happy to help with budgeting, savings, investments, loans, taxes, or your financial goals."
+            )
+            event_tracker.record_event(PipelineEventType.REQUEST_COMPLETED)
+            response_time_ms = int(tracker.finish())
+            assistant_metadata = {
+                "request_id": req_id,
+                "provider": settings.ai_provider,
+                "model": settings.ai_model,
+                "response_time_ms": response_time_ms,
+                "retrieval_count": 0,
+                "intent": intent.value if hasattr(intent, "value") else str(intent),
+                "sub_intent": understanding.sub_intent.value if hasattr(understanding.sub_intent, "value") else str(understanding.sub_intent),
+                "domain_guard_refusal": True,
+                "resilience": resilience_metrics.to_metadata_dict(),
+                "latency": tracker.to_dict(),
+            }
+            with tracker.timer("persistence_ms"):
+                assistant_msg = self._conv.store_assistant_message(
+                    conversation_id=conversation_id,
+                    content=refusal_text,
+                    metadata=assistant_metadata,
+                )
+            self._observability.record_request_telemetry(
+                request_id=req_id,
+                conversation_id=conversation_id,
+                latency_breakdown=tracker.breakdown,
+                understanding=understanding,
+                quality_metadata={"overall_score": 1.0, "passed": True, "dimensions": {}},
+                resilience_metadata=assistant_metadata.get("resilience"),
+                routing_decision=None,
+                streaming_enabled=False,
+                personal_boundary_checked=False,
+                personal_boundary_passed=True,
+                pipeline_events=event_tracker.get_events(),
+            )
+            return SendMessageResponse(
+                conversation_id=conversation_id,
+                user_message=MessageResponse.model_validate(user_msg),
+                assistant_message=MessageResponse.model_validate(assistant_msg),
+                sources=[],
+                response_time_ms=response_time_ms,
+            )
 
         # Fast short-circuit if personal finance context is unavailable for personal queries (Zero Hallucination Guarantee)
         if dash_failed and (intent in (QueryIntent.PERSONAL_FINANCE, QueryIntent.MIXED) or getattr(understanding, "requires_personal_data", False)):
@@ -1207,6 +1266,60 @@ class AIAdvisorService:
 
         understanding = self._understanding.analyze(request.message, history=history, tracker=tracker)
         intent = understanding.intent
+
+        # Fast short-circuit if query is non-financial (Domain Guard Protection)
+        if not getattr(understanding, "is_financial", True):
+            refusal_text = getattr(understanding, "refusal_message", None) or (
+                "I’m DhanSarthi AI, your financial advisor, so I’m focused on helping with money and financial decisions. "
+                "I can’t help with non-financial questions, but I’d be happy to help with budgeting, savings, investments, loans, taxes, or your financial goals."
+            )
+            event_tracker.record_event(PipelineEventType.REQUEST_COMPLETED)
+            if emit_sse:
+                yield f"event: start\ndata: {json.dumps({'message_id': user_msg.id, 'conversation_id': conversation_id, 'request_id': req_id})}\n\n"
+            words = refusal_text.split(" ")
+            for i, word in enumerate(words):
+                chunk = word + (" " if i < len(words) - 1 else "")
+                if emit_sse:
+                    yield f"event: token\ndata: {json.dumps({'text': chunk})}\n\n"
+                else:
+                    yield chunk
+                await asyncio.sleep(0.01)
+            response_time_ms = int(tracker.finish())
+            assistant_metadata = {
+                "request_id": req_id,
+                "provider": settings.ai_provider,
+                "model": settings.ai_model,
+                "response_time_ms": response_time_ms,
+                "retrieval_count": 0,
+                "intent": intent.value if hasattr(intent, "value") else str(intent),
+                "sub_intent": understanding.sub_intent.value if hasattr(understanding.sub_intent, "value") else str(understanding.sub_intent),
+                "domain_guard_refusal": True,
+                "resilience": resilience_metrics.to_metadata_dict(),
+                "latency": tracker.to_dict(),
+            }
+            with tracker.timer("persistence_ms"):
+                asst_msg = self._conv.store_assistant_message(
+                    conversation_id=conversation_id,
+                    content=refusal_text,
+                    metadata=assistant_metadata,
+                )
+            self._observability.record_request_telemetry(
+                request_id=req_id,
+                conversation_id=conversation_id,
+                latency_breakdown=tracker.breakdown,
+                understanding=understanding,
+                quality_metadata={"overall_score": 1.0, "passed": True, "dimensions": {}},
+                resilience_metadata=assistant_metadata.get("resilience"),
+                routing_decision=None,
+                streaming_enabled=True,
+                personal_boundary_checked=False,
+                personal_boundary_passed=True,
+                pipeline_events=event_tracker.get_events(),
+            )
+            if emit_sse:
+                yield f"event: metadata\ndata: {json.dumps({'citations': [], 'quality': {'overall_score': 1.0, 'passed': True, 'dimensions': {}}, 'latency': tracker.to_dict(), 'selected_model': settings.ai_model, 'resilience': resilience_metrics.to_metadata_dict()})}\n\n"
+                yield f"event: complete\ndata: {json.dumps({'message_id': asst_msg.id, 'status': 'completed'})}\n\n"
+            return
 
         # Fast short-circuit if personal finance context is unavailable for personal queries (Zero Hallucination Guarantee)
         if dash_failed and (intent in (QueryIntent.PERSONAL_FINANCE, QueryIntent.MIXED) or getattr(understanding, "requires_personal_data", False)):

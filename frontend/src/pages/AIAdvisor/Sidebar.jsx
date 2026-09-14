@@ -25,7 +25,20 @@ export function Sidebar({ isOpen, onClose, className }) {
 
   const createMutation = useCreateConversation()
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  const activeConvIdFromUrl = location.pathname.startsWith('/ai-advisor/chat/')
+    ? location.pathname.split('/ai-advisor/chat/')[1]
+    : null
+
+  const getChatPath = () => {
+    if (activeConvIdFromUrl) {
+      return `/ai-advisor/chat/${activeConvIdFromUrl}`
+    }
+    if (conversations.length > 0) {
+      return `/ai-advisor/chat/${conversations[0].id}`
+    }
+    return '/ai-advisor/chat'
+  }
+
   const navItems = [
     { label: 'Chat', path: '/ai-advisor/chat', icon: 'MessageSquare' },
     { label: 'History', path: '/ai-advisor/history', icon: 'History' },
@@ -112,10 +125,11 @@ export function Sidebar({ isOpen, onClose, className }) {
         {navItems.map((item) => {
           const Icon = LucideIcons[item.icon] || LucideIcons.Layers
           const active = isActivePath(item.path)
+          const targetPath = item.path === '/ai-advisor/chat' ? getChatPath() : item.path
           return (
             <NavLink
               key={item.path}
-              to={item.path}
+              to={targetPath}
               onClick={onClose}
               className={cn(
                 'relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 outline-none group',

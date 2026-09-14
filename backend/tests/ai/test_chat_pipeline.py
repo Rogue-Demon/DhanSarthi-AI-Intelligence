@@ -227,3 +227,55 @@ class TestChatPipeline:
         )
         assert result.assistant_message.content == "Advice without RAG"
         assert result.sources == []
+
+
+class TestMultiTurnConversationArchitecture:
+    @pytest.mark.anyio
+    async def test_multiple_messages_belong_to_same_conversation(self, db_session: Session):
+        """Sequential user queries must append to the SAME conversation ID."""
+        _seed_user(db_session, 888)
+        conv_svc = ConversationService(db_session)
+        svc = _build_service(db_session)
+
+        # 1. Create one conversation
+        conv = conv_svc.create_conversation(user_id=888, title=None)
+        assert conv.title == "New Conversation"
+        original_created_at = conv.created_at
+
+        # 2. First message: auto-titles conversation and persists turn
+        res1 = await svc.send_chat_message(
+            user_id=888,
+            conversation_id=conv.id,
+            request=SendMessageRequest(message="Who is your prime minister?"),
+        )
+        assert res1.conversation_id == conv.id
+        assert conv.title == "Who is your prime minister?"
+
+        # 3. Second message in same conversation
+        res2 = await svc.send_chat_message(
+            user_id=888,
+            conversation_id=conv.id,
+            request=SendMessageRequest(message="What is the current tax rate?"),
+        )
+        assert res2.conversation_id == conv.id
+
+        # 4. Third message in same conversation
+        res3 = await svc.send_chat_message(
+            user_id=888,
+            conversation_id=conv.id,
+            request=SendMessageRequest(message="How can I achieve my financial goal?"),
+        )
+        assert res3.conversation_id == conv.id
+
+        # 5. Verify total message count for this ONE conversation
+        messages = conv_svc.get_recent_messages(conv.id, limit=100)
+        assert len(messages) == 6  # 3 USER + 3 ASSISTANT = 6 messages
+        assert conv_svc.get_message_count(conv.id) == 6
+
+        # 6. Verify only 1 conversation exists for user 888
+        items, total = conv_svc.list_conversations(user_id=888)
+        assert total == 1
+        assert items[0].id == conv.id
+        assert items[0].title == "Who is your prime minister?"
+        assert items[0].updated_at.replace(tzinfo=None) >= original_created_at.replace(tzinfo=None)
+

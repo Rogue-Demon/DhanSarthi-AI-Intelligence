@@ -180,6 +180,12 @@ class ConfirmationRequest(BaseModel):
     )
 
 
+class ReclassifyRequest(BaseModel):
+    """Schema for manual user document reclassification."""
+
+    document_type: DocumentType = Field(..., description="Selected target document type.")
+
+
 class ConfirmationResponse(BaseModel):
     """Import operation summary response."""
 
@@ -193,4 +199,5 @@ class ConfirmationResponse(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     field_explanations: List[MappedFieldExplanationSchema] = Field(default_factory=list)
     status: DocumentStatus = Field(..., description="Updated status of the document.")
+
 

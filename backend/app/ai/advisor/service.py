@@ -201,6 +201,7 @@ class AIAdvisorService:
                 financial_intelligence = self._intel.build_summary(user_id=user_id)
             except Exception:
                 pass
+        financial_intelligence = self._enrich_with_dcs_context(user_id, financial_intelligence, request.message)
 
         # Retrieve live market data
         live_market_data = await self._retrieve_live_market_data(request.message, user_id)
@@ -703,6 +704,7 @@ class AIAdvisorService:
                     financial_intelligence = self._intel.build_summary(user_id=user_id)
                 except Exception:
                     pass
+        financial_intelligence = self._enrich_with_dcs_context(user_id, financial_intelligence, request.message)
 
         # Retrieve live market data (Bypassed on Fast-Path unless explicitly required)
         requires_mkt = bool(_ep and getattr(_ep, "requires_market_data", False))
@@ -2403,3 +2405,45 @@ class AIAdvisorService:
             dimensions={"completeness": 0.8, "relevance": 0.8, "grounding": 1.0, "citation": 1.0, "personal_accuracy": 1.0, "safety": 1.0},
         )
         return fallback_text, fallback_result, True
+
+    def _enrich_with_dcs_context(self, user_id: int, financial_intelligence: Any, query: str) -> Any:
+        """Inject structured DCS profile, snapshot comparison, and recommendations into AI context."""
+        try:
+            from app.services.creditworthiness_service import CreditworthinessService
+            dcs_service = CreditworthinessService(self._db)
+            profile = dcs_service.get_or_calculate_credit_profile(user_id)
+
+            dcs_data = {
+                "creditworthiness_score": profile.creditworthiness_score,
+                "status": profile.status.value if hasattr(profile.status, "value") else str(profile.status),
+                "risk_band": profile.risk_band.value if hasattr(profile.risk_band, "value") else str(profile.risk_band),
+                "confidence_label": profile.confidence_label.value if hasattr(profile.confidence_label, "value") else str(profile.confidence_label),
+                "loan_readiness": profile.loan_readiness.value if hasattr(profile.loan_readiness, "value") else str(profile.loan_readiness),
+                "months_available": profile.months_available,
+                "dti_ratio": profile.dti_ratio,
+                "positive_factors": profile.positive_factors or [],
+                "risk_factors": profile.risk_factors or [],
+                "dimensions": profile.dimension_scores or {},
+                "action_recommendations": dcs_service.get_action_recommendations(profile),
+                "disclaimer": "Internal DhanSarthi assessment, not a CIBIL score or official credit bureau score.",
+            }
+
+            q_lower = query.lower()
+            if any(w in q_lower for w in ["change", "history", "trend", "different", "before", "last month", "dropped", "improved"]):
+                comparison = dcs_service.get_score_comparison(user_id)
+                dcs_data["score_comparison"] = comparison
+
+            if financial_intelligence is None:
+                return {"creditworthiness": dcs_data}
+            elif isinstance(financial_intelligence, dict):
+                financial_intelligence["creditworthiness"] = dcs_data
+                return financial_intelligence
+            elif hasattr(financial_intelligence, "model_dump"):
+                dumped = financial_intelligence.model_dump(mode="json")
+                dumped["creditworthiness"] = dcs_data
+                return dumped
+            return financial_intelligence
+        except Exception as exc:
+            logger.warning(f"Could not enrich AI context with DCS data: {exc}")
+            return financial_intelligence
+

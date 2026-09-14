@@ -158,6 +158,9 @@ export const ENDPOINTS = {
   },
   creditworthiness: {
     get: '/creditworthiness',
+    summary: '/creditworthiness/summary',
+    comparison: '/creditworthiness/comparison',
+    report: '/creditworthiness/report',
     recalculate: '/creditworthiness/recalculate',
     history: '/creditworthiness/history',
     shareConsent: '/creditworthiness/share-consent',

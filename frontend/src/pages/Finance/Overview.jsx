@@ -1,20 +1,21 @@
-import React from 'react'
-import { useProfile, useDashboardData, useTransactions, useGoals } from '@/hooks'
-import { Badge, Button } from '@/components/ui'
+import { useDashboardData, useTransactions, useGoals, useCreditworthiness } from '@/hooks'
+import { Badge } from '@/components/ui'
 import { motion, useReducedMotion } from 'framer-motion'
-import { DashboardGrid, WidgetContainer, DashboardSection } from '@/components/dashboard'
+import { DashboardGrid, WidgetContainer } from '@/components/dashboard'
+import { ArrowRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import * as LucideIcons from 'lucide-react'
 
 export function Overview() {
-  const { profile } = useProfile()
   const shouldReduceMotion = useReducedMotion()
 
-  // Load real financial and ledger data
+  // Load real financial, ledger, and creditworthiness data
   const { data: dashboardData, isLoading: dashLoading } = useDashboardData()
   const { data: txData, isLoading: txLoading } = useTransactions({ page: 1, page_size: 4 })
   const { data: goalsData, isLoading: goalsLoading } = useGoals()
+  const { creditData, isLoading: creditLoading } = useCreditworthiness()
 
-  if (dashLoading || txLoading || goalsLoading) {
+  if (dashLoading || txLoading || goalsLoading || creditLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
         <div className="col-span-3 h-28 bg-muted/20 animate-pulse rounded-2xl border" />
@@ -59,6 +60,31 @@ export function Overview() {
 
   const goals = goalsData?.items || []
 
+  // Structured backend DCS metrics for complementary intelligence
+  const dcsScore = creditData?.creditworthiness_score
+  const dcsStatus = creditData?.status
+  const dcsRiskBand = creditData?.risk_band
+  const positiveFactor = creditData?.positive_factors?.[0]
+  const riskFactor = creditData?.risk_factors?.[0]
+
+  // Construct data-grounded complementary explanation from backend factors
+  let complementaryExplanation
+  if (dcsStatus === 'INSUFFICIENT_DATA') {
+    complementaryExplanation =
+      'More verified financial history is required to complete creditworthiness assessment.'
+  } else {
+    if (positiveFactor && riskFactor) {
+      complementaryExplanation = `Your financial health is supported by ${positiveFactor.toLowerCase()}, but ${riskFactor.toLowerCase()}`
+    } else if (positiveFactor) {
+      complementaryExplanation = `Supported by ${positiveFactor.toLowerCase()}`
+    } else if (riskFactor) {
+      complementaryExplanation = `Creditworthiness affected by ${riskFactor.toLowerCase()}`
+    } else {
+      complementaryExplanation =
+        'Complementary evaluation of borrowing capability based on authentic records.'
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 10 }}
@@ -99,48 +125,80 @@ export function Overview() {
         <WidgetContainer
           title="Financial Health Score"
           icon="Activity"
-          sizeClass="lg:col-span-4 md:col-span-1"
+          sizeClass="lg:col-span-6 md:col-span-1"
         >
-          <div className="flex flex-col items-center justify-center text-center gap-4 py-2">
-            <div className="relative h-20 w-20 flex items-center justify-center">
-              <svg className="h-full w-full transform -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-muted"
-                  strokeWidth="3"
-                  stroke="currentColor"
-                  fill="transparent"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-primary"
-                  strokeWidth="3"
-                  strokeDasharray={`${healthScore}, 100`}
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="transparent"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <span className="absolute text-base font-black text-text-primary">
-                {healthScore}%
+          <div className="flex flex-col sm:flex-row items-center justify-around gap-4 py-2">
+            <div className="flex flex-col items-center justify-center text-center gap-3">
+              <div className="relative h-20 w-20 flex items-center justify-center">
+                <svg className="h-full w-full transform -rotate-90" viewBox="0 0 36 36">
+                  <path
+                    className="text-muted"
+                    strokeWidth="3"
+                    stroke="currentColor"
+                    fill="transparent"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path
+                    className="text-primary"
+                    strokeWidth="3"
+                    strokeDasharray={`${healthScore}, 100`}
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="transparent"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <span className="absolute text-base font-black text-text-primary">
+                  {healthScore}%
+                </span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Badge
+                  variant="secondary"
+                  className="mx-auto text-[9px] font-bold bg-primary/10 text-primary border-primary/20 py-0.5 px-2 rounded"
+                >
+                  {healthScore >= 75
+                    ? 'Strong Health'
+                    : healthScore >= 50
+                      ? 'Stable Health'
+                      : 'Review Health'}
+                </Badge>
+                <p className="text-[10px] font-bold text-text-muted leading-relaxed max-w-[180px] mt-1.5">
+                  Spending, savings, & cash flow strength.
+                </p>
+              </div>
+            </div>
+          </div>
+        </WidgetContainer>
+
+        {/* Complementary Intelligence: Creditworthiness (DCS) */}
+        <WidgetContainer
+          title="Creditworthiness Intelligence (DCS)"
+          icon="ShieldCheck"
+          sizeClass="lg:col-span-6 md:col-span-1"
+        >
+          <div className="flex flex-col justify-between h-full py-1 gap-3 text-left">
+            <div className="flex items-center justify-between border-b border-border/50 pb-2">
+              <span className="text-[10px] font-black text-text-muted uppercase tracking-wider">
+                DhanSarthi DCS
+              </span>
+              <span className="text-xs font-black text-primary">
+                {dcsStatus === 'INSUFFICIENT_DATA'
+                  ? 'Build History'
+                  : `${dcsScore} / 100 — ${dcsRiskBand || 'Good'}`}
               </span>
             </div>
-            <div className="flex flex-col gap-1">
-              <Badge
-                variant="secondary"
-                className="mx-auto text-[9px] font-bold bg-primary/10 text-primary border-primary/20 py-0.5 px-2 rounded"
+            <p className="text-xs font-bold text-text-secondary leading-relaxed">
+              {complementaryExplanation}
+            </p>
+            <div className="flex justify-end pt-1">
+              <Link
+                to="/creditworthiness"
+                className="inline-flex items-center gap-1 text-xs font-black text-primary hover:underline"
               >
-                {healthScore >= 75
-                  ? 'Strong Health'
-                  : healthScore >= 50
-                    ? 'Stable Health'
-                    : 'Review Health'}
-              </Badge>
-              <p className="text-[10px] font-bold text-text-muted leading-relaxed max-w-[180px] mt-1.5">
-                {healthScore >= 75
-                  ? 'Excellent savings and assets leverage ratios.'
-                  : 'Consider capping discretionary expense flows.'}
-              </p>
+                <span>View DCS Profile</span>
+                <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           </div>
         </WidgetContainer>

@@ -18,6 +18,12 @@ class CreditStatus(str, enum.Enum):
     INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
 
 
+class CreditDimensionStatus(str, enum.Enum):
+    AVAILABLE = "AVAILABLE"
+    UNAVAILABLE = "UNAVAILABLE"
+    NOT_CONFIGURED = "NOT_CONFIGURED"
+
+
 class RiskBand(str, enum.Enum):
     STRONG = "STRONG"                # 80 - 100
     GOOD = "GOOD"                    # 65 - 79

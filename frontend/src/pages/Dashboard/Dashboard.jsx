@@ -1,7 +1,7 @@
-import React from 'react'
 import { useProfile, useDashboardData } from '@/hooks'
 import { PageTransition } from '@/components/motion'
 import { DashboardLoader, DashboardBanner, DashboardSummary } from '@/components/dashboard'
+import { DcsSummaryWidget } from '@/components/dashboard/widgets/DcsSummaryWidget'
 import { Button } from '@/components/ui'
 import DashboardContainer from './DashboardContainer'
 import DashboardHeader from './DashboardHeader'
@@ -85,6 +85,9 @@ export function Dashboard() {
 
         {/* Summary Strip (Placeholders metrics) */}
         <DashboardSummary dashboardData={dashboardData} />
+
+        {/* Compact DhanSarthi Creditworthiness Score Card */}
+        <DcsSummaryWidget />
 
         {/* Widgets Grid Section */}
         <DashboardSection

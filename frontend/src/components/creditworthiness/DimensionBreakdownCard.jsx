@@ -1,5 +1,3 @@
-import React from 'react'
-
 export function DimensionBreakdownCard({ dimensionScores }) {
   if (!dimensionScores || Object.keys(dimensionScores).length === 0) {
     return null
@@ -32,13 +30,37 @@ export function DimensionBreakdownCard({ dimensionScores }) {
           if (scoreVal < 40) colorClass = 'bg-rose-500'
           else if (scoreVal < 70) colorClass = 'bg-amber-500'
 
+          let statusBadge
+          if (dim.status === 'UNAVAILABLE') {
+            statusBadge = (
+              <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700">
+                Unavailable
+              </span>
+            )
+          } else if (dim.status === 'NOT_CONFIGURED') {
+            statusBadge = (
+              <span className="text-[10px] bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded border border-amber-500/20">
+                Not Configured
+              </span>
+            )
+          } else {
+            statusBadge = (
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">
+                Evaluated
+              </span>
+            )
+          }
+
           return (
             <div
               key={dim.name}
               className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-4 space-y-2"
             >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-200">{dim.label}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-slate-200">{dim.label}</span>
+                  {statusBadge}
+                </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-400">Weight: {weightPct}%</span>
                   <span className="text-sm font-bold text-white">{Math.round(scoreVal)}/100</span>
@@ -53,7 +75,9 @@ export function DimensionBreakdownCard({ dimensionScores }) {
                 />
               </div>
 
-              <p className="text-xs text-slate-400 leading-normal">{dim.description}</p>
+              <p className="text-xs text-slate-400 leading-normal">
+                {dim.explanation || dim.description}
+              </p>
             </div>
           )
         })}

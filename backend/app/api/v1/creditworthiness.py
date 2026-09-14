@@ -5,6 +5,7 @@ API router for DhanSarthi Creditworthiness Score (DCS).
 from __future__ import annotations
 
 from typing import List
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,9 @@ from app.models.user import User
 from app.services.creditworthiness_service import CreditworthinessService
 from app.schemas.creditworthiness import (
     CreditworthinessResponse,
+    CreditSummaryResponse,
+    ScoreComparisonResponse,
+    CreditProfileReportResponse,
     CreditHistoryResponse,
     CreditHistorySnapshotResponse,
     ShareConsentRequest,
@@ -24,6 +28,28 @@ from app.schemas.creditworthiness import (
 from app.models.creditworthiness import CreditConfidenceLevel
 
 router = APIRouter(prefix="/creditworthiness", tags=["creditworthiness"])
+
+
+def _build_data_coverage(profile) -> DataCoverage:
+    cov = profile.data_coverage or {}
+    oldest = cov.get("oldest_record")
+    newest = cov.get("newest_record")
+
+    return DataCoverage(
+        months_available=cov.get("months_available", profile.months_available),
+        months_required_for_high_confidence=cov.get("months_required_for_high_confidence", 6),
+        domains_active_count=cov.get("domains_active_count", 0),
+        total_domains_count=cov.get("total_domains_count", 6),
+        oldest_record=date.fromisoformat(oldest) if oldest and isinstance(oldest, str) else oldest,
+        newest_record=date.fromisoformat(newest) if newest and isinstance(newest, str) else newest,
+        income_months=cov.get("income_months", 0),
+        expense_months=cov.get("expense_months", 0),
+        transaction_months=cov.get("transaction_months", 0),
+        loan_history_available=cov.get("loan_history_available", False),
+        document_evidence_available=cov.get("document_evidence_available", False),
+        confidence_score=cov.get("confidence_score", profile.confidence_score),
+        confidence_label=CreditConfidenceLevel(cov.get("confidence_label", profile.confidence_label.value if hasattr(profile.confidence_label, "value") else str(profile.confidence_label))),
+    )
 
 
 @router.get("", response_model=CreditworthinessResponse)
@@ -42,20 +68,14 @@ def get_creditworthiness(
             if isinstance(v, dict):
                 dimensions_dict[k] = CreditDimensionScore(**v)
 
-    # Format coverage
-    cov = profile.data_coverage or {}
-    data_coverage = DataCoverage(
-        months_available=cov.get("months_available", profile.months_available),
-        months_required_for_high_confidence=cov.get("months_required_for_high_confidence", 6),
-        domains_active_count=cov.get("domains_active_count", 0),
-        total_domains_count=cov.get("total_domains_count", 6),
-        confidence_score=cov.get("confidence_score", profile.confidence_score),
-        confidence_label=CreditConfidenceLevel(cov.get("confidence_label", profile.confidence_label.value if hasattr(profile.confidence_label, "value") else str(profile.confidence_label))),
-    )
+    data_coverage = _build_data_coverage(profile)
+    is_stale = service.is_profile_stale(profile)
+    recommendations = service.get_action_recommendations(profile)
 
     return CreditworthinessResponse(
         user_id=current_user.id,
         creditworthiness_score=profile.creditworthiness_score,
+        score_scale="0-100",
         status=profile.status,
         risk_band=profile.risk_band,
         loan_readiness=profile.loan_readiness,
@@ -67,9 +87,56 @@ def get_creditworthiness(
         positive_factors=profile.positive_factors or [],
         risk_factors=profile.risk_factors or [],
         dimension_scores=dimensions_dict,
+        action_recommendations=recommendations,
+        score_status="STALE" if is_stale else "CURRENT",
         last_calculated_at=profile.last_calculated_at,
         created_at=profile.created_at,
     )
+
+
+@router.get("/summary", response_model=CreditSummaryResponse)
+def get_creditworthiness_summary(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CreditSummaryResponse:
+    """Retrieve a lightweight DCS summary for dashboard widgets."""
+    service = CreditworthinessService(db)
+    profile = service.get_or_calculate_credit_profile(current_user.id)
+    is_stale = service.is_profile_stale(profile)
+
+    return CreditSummaryResponse(
+        user_id=current_user.id,
+        creditworthiness_score=profile.creditworthiness_score,
+        status=profile.status,
+        risk_band=profile.risk_band,
+        confidence_label=profile.confidence_label,
+        months_available=profile.months_available,
+        loan_readiness=profile.loan_readiness,
+        score_status="STALE" if is_stale else "CURRENT",
+        last_calculated_at=profile.last_calculated_at,
+    )
+
+
+@router.get("/comparison", response_model=ScoreComparisonResponse)
+def get_creditworthiness_comparison(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ScoreComparisonResponse:
+    """Retrieve snapshot score comparison explaining score changes over time."""
+    service = CreditworthinessService(db)
+    comp_dict = service.get_score_comparison(current_user.id)
+    return ScoreComparisonResponse(**comp_dict)
+
+
+@router.get("/report", response_model=CreditProfileReportResponse)
+def get_creditworthiness_report(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CreditProfileReportResponse:
+    """Retrieve a structured creditworthiness report for prospective lender sharing."""
+    service = CreditworthinessService(db)
+    report_dict = service.generate_shareable_profile_report(current_user.id)
+    return CreditProfileReportResponse(**report_dict)
 
 
 @router.post("/recalculate", response_model=CreditworthinessResponse)
@@ -87,19 +154,13 @@ def recalculate_creditworthiness(
             if isinstance(v, dict):
                 dimensions_dict[k] = CreditDimensionScore(**v)
 
-    cov = profile.data_coverage or {}
-    data_coverage = DataCoverage(
-        months_available=cov.get("months_available", profile.months_available),
-        months_required_for_high_confidence=cov.get("months_required_for_high_confidence", 6),
-        domains_active_count=cov.get("domains_active_count", 0),
-        total_domains_count=cov.get("total_domains_count", 6),
-        confidence_score=cov.get("confidence_score", profile.confidence_score),
-        confidence_label=CreditConfidenceLevel(cov.get("confidence_label", profile.confidence_label.value if hasattr(profile.confidence_label, "value") else str(profile.confidence_label))),
-    )
+    data_coverage = _build_data_coverage(profile)
+    recommendations = service.get_action_recommendations(profile)
 
     return CreditworthinessResponse(
         user_id=current_user.id,
         creditworthiness_score=profile.creditworthiness_score,
+        score_scale="0-100",
         status=profile.status,
         risk_band=profile.risk_band,
         loan_readiness=profile.loan_readiness,
@@ -111,6 +172,8 @@ def recalculate_creditworthiness(
         positive_factors=profile.positive_factors or [],
         risk_factors=profile.risk_factors or [],
         dimension_scores=dimensions_dict,
+        action_recommendations=recommendations,
+        score_status="CURRENT",
         last_calculated_at=profile.last_calculated_at,
         created_at=profile.created_at,
     )
@@ -156,5 +219,7 @@ def record_share_consent(
         recipient_name=consent.recipient_name,
         consent_granted=consent.consent_granted,
         consented_at=consent.consented_at,
+        expires_at=consent.expires_at,
         message=f"Explicit consent granted to share DhanSarthi Creditworthiness Profile with {consent.recipient_name}.",
     )
+

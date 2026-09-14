@@ -45,7 +45,8 @@ class FinancialDomainGuard:
         "portfolio", "mutual fund", "mutual funds", "sip", "lump sum", "lumpsum",
         "stock", "stocks", "share", "shares", "equity", "nifty", "sensex", "market",
         "debt", "loan", "loans", "emi", "borrow", "borrowing", "interest rate", "repo rate",
-        "cibil", "credit score", "credit card", "tax", "taxes", "taxation", "80c", "gst",
+        "cibil", "credit score", "creditworthiness", "dcs", "loan readiness", "repayment",
+        "repayment behaviour", "credit card", "tax", "taxes", "taxation", "80c", "gst",
         "capital gains", "insurance", "premium", "policy", "claim", "asset", "assets",
         "liability", "liabilities", "net worth", "networth", "wealth", "cash flow",
         "cashflow", "retirement", "pension", "epf", "ppf", "nps", "fd", "fixed deposit",
@@ -58,6 +59,13 @@ class FinancialDomainGuard:
     ]
 
     FINANCIAL_PATTERNS = [
+        # Creditworthiness & DCS
+        r"\b(dcs|creditworthiness|credit score|loan readiness)\b",
+        r"\b(why is my score (low|high|changing|different))\b",
+        r"\b(why did my (score|dcs) change)\b",
+        r"\b(am i ready for a loan|loan readiness)\b",
+        r"\b(how (can|to) (improve|increase|build) my (score|creditworthiness|dcs))\b",
+        r"\b(what is affecting my (score|creditworthiness|dcs))\b",
         # Affordability & Decisions
         r"\bcan i afford\b",
         r"\bshould i buy\b",
@@ -71,12 +79,12 @@ class FinancialDomainGuard:
         r"\bwhere should i (invest|put|keep) my\b",
         r"\bhow much (emergency fund|money) (do i|should i)\b",
         # Financial Concepts & Definitions
-        r"\bwhat is (a |an )?(sip|mutual fund|ppf|nps|epf|emi|gst|cibil|cagr|xirr|nav|fd|rd|index fund|stock|bond|etf|reit|inflation|compound interest|net worth|dti|debt to income|cash flow|capital gain|tax saver|emergency fund|working capital|profit margin|balance sheet)\b",
-        r"\bexplain (compound interest|sip|mutual funds?|inflation|cagr|xirr|taxes?|80c|asset allocation|dollar cost averaging|rupee cost averaging)\b",
-        r"\bdifference between (sip|lump sum|mutual fund|stocks?|direct|regular|ppf|nps|term insurance|endowment)\b",
+        r"\bwhat is (a |an )?(sip|mutual fund|ppf|nps|epf|emi|gst|cibil|dcs|creditworthiness|cagr|xirr|nav|fd|rd|index fund|stock|bond|etf|reit|inflation|compound interest|net worth|dti|debt to income|cash flow|capital gain|tax saver|emergency fund|working capital|profit margin|balance sheet)\b",
+        r"\bexplain (compound interest|sip|mutual funds?|inflation|cagr|xirr|taxes?|80c|asset allocation|dollar cost averaging|rupee cost averaging|dcs|creditworthiness)\b",
+        r"\bdifference between (sip|lump sum|mutual fund|stocks?|direct|regular|ppf|nps|term insurance|endowment|cibil|dcs)\b",
         # Calculations & Metrics
         r"\bcalculate (emi|sip|returns?|interest|tax|capital gains?|loan|mortgage)\b",
-        r"\bwhat is my (savings rate|net worth|spending|total expense|dti|debt ratio)\b",
+        r"\bwhat is my (savings rate|net worth|spending|total expense|dti|debt ratio|creditworthiness|dcs|score)\b",
         # Business Finance
         r"\b(business|startup|company) (cash flow|revenue|profit|working capital|expenses?|payroll|loan|margin)\b",
         # Document & Statement Analysis
@@ -345,6 +353,7 @@ class FinancialDomainGuard:
             "who is", "who was", "where is", "what is the capital", "tell me about",
             "write a", "compose a", "how to cook", "how to make", "what movie",
             "who won", "play a", "sing a", "explain physics", "explain chemistry",
+            "how does a", "how does", "how do",
         ]
         has_non_fin = any(ind in q_lower for ind in non_fin_indicators)
         has_fin = self._has_explicit_financial_context(q_lower)

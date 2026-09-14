@@ -37,11 +37,11 @@ export function Overview() {
 
   const healthScore = dashboardData
     ? Math.round(
-        (savingsRate > 0 ? Math.min(savingsRate * 2.5, 40) : 15) +
-          (dti > 0 ? Math.max(0, 40 - dti) : 30) +
-          (totalAssets > 0 ? Math.min((totalAssets / Math.max(1, totalLiabilities)) * 5, 20) : 10)
+        (savingsRate > 0 ? Math.min(savingsRate * 2.5, 40) : 0) +
+          (dti > 0 ? Math.max(0, 40 - dti) : 0) +
+          (totalAssets > 0 ? Math.min((totalAssets / Math.max(1, totalLiabilities)) * 5, 20) : 0)
       )
-    : 80
+    : 0
 
   const activities = (txData?.items || []).map((tx) => {
     const isIncome = tx.transaction_type === 'INCOME'

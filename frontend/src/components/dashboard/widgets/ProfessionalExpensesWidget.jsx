@@ -12,34 +12,12 @@ export function ProfessionalExpensesWidget({ widget, sizeClass, dashboardData })
   const totalBudget = parseFloat(dashboardData?.budgets?.total_budget || 0)
   const percentSpent = totalBudget > 0 ? Math.round((totalExpenses / totalBudget) * 100) : 0
 
+  const expenseCategories = dashboardData?.cash_flow?.expense_by_category || {}
+  const categoriesList = Object.entries(expenseCategories)
+
   // Fetch the single most recent transaction dynamically
   const { data: txData } = useTransactions({ page: 1, page_size: 1 })
   const recentTx = txData?.items?.[0]
-
-  // Mock bills list
-  const bills = [
-    {
-      title: 'Apartment Rent EMI',
-      amount: '₹18,000',
-      due: 'Due 10th Aug',
-      status: 'pending',
-      color: '#EF4444',
-    },
-    {
-      title: 'Premium Health Insurance',
-      amount: '₹4,500',
-      due: 'Paid 3rd Aug',
-      status: 'paid',
-      color: '#10B981',
-    },
-    {
-      title: 'Credit Card Statement',
-      amount: '₹12,200',
-      due: 'Due 15th Aug',
-      status: 'pending',
-      color: '#EF4444',
-    },
-  ]
 
   const toolbar = (
     <WidgetActions
@@ -67,48 +45,45 @@ export function ProfessionalExpensesWidget({ widget, sizeClass, dashboardData })
               ₹{totalExpenses.toLocaleString('en-IN')}
             </span>
             <span className="text-xs text-text-secondary mt-1 font-medium">
-              {percentSpent}% of total monthly budget spent
+              {totalBudget > 0
+                ? `${percentSpent}% of total monthly budget spent`
+                : 'No budget target set'}
             </span>
           </div>
           <Badge
             variant="secondary"
             className="text-[10px] font-bold bg-danger/10 border-danger/15 text-danger py-0.5 px-2 rounded"
           >
-            {totalExpenses > 0 ? 'Active' : 'No Data'}
+            {totalExpenses > 0 ? 'Active Outflows' : 'No Outflows'}
           </Badge>
         </div>
 
-        {/* Bill Reminders List */}
+        {/* Expense Categories Breakdown */}
         <div className="flex flex-col gap-2.5">
           <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider leading-none">
-            Upcoming Bills & EMIs
+            Expenses by Category
           </span>
 
           <div className="flex flex-col gap-2">
-            {bills.map((bill, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/80 text-xs font-semibold text-text-secondary hover:border-primary/20 transition-all duration-200"
-              >
+            {categoriesList.length > 0 ? (
+              categoriesList.map(([cat, val], idx) => (
                 <div
-                  className="flex flex-col gap-0.5 text-left border-l-2 pl-2"
-                  style={{ borderColor: bill.color }}
+                  key={cat}
+                  className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 border border-border/80 text-xs font-semibold text-text-secondary"
                 >
-                  <span className="font-extrabold text-text-primary">{bill.title}</span>
-                  <span className="text-[10px] font-bold text-text-muted">{bill.due}</span>
+                  <span className="font-extrabold text-text-primary capitalize">
+                    {cat.replace(/_/g, ' ').toLowerCase()}
+                  </span>
+                  <span className="font-extrabold text-text-primary">
+                    ₹{parseFloat(val).toLocaleString('en-IN')}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-text-primary">{bill.amount}</span>
-                  <div
-                    className="h-2 w-2 rounded-full shrink-0"
-                    style={{ backgroundColor: bill.status === 'paid' ? '#10B981' : '#EF4444' }}
-                  />
-                </div>
-              </motion.div>
-            ))}
+              ))
+            ) : (
+              <div className="text-xs font-medium text-text-muted py-3 text-center">
+                No monthly expenses recorded yet.
+              </div>
+            )}
           </div>
         </div>
 

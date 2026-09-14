@@ -1,12 +1,16 @@
-import React from 'react';
-import { mockDatasets, Colors } from '@/config';
-import { motion, useReducedMotion } from 'framer-motion';
-import { DashboardGrid } from '@/components/dashboard';
-import { LineChartCard, AreaChartCard } from '@/components/charts';
-import { Badge } from '@/components/ui';
+import React from 'react'
+import { useCashFlow } from '@/hooks'
+import { Colors } from '@/config'
+import { motion, useReducedMotion } from 'framer-motion'
+import { DashboardGrid } from '@/components/dashboard'
+import { LineChartCard, AreaChartCard } from '@/components/charts'
+import * as LucideIcons from 'lucide-react'
 
 export function Monthly() {
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useReducedMotion()
+  const { data: cashFlowResp } = useCashFlow()
+
+  const cashFlowData = cashFlowResp?.data || cashFlowResp || []
 
   return (
     <motion.div
@@ -27,35 +31,53 @@ export function Monthly() {
       <DashboardGrid>
         {/* Monthly Line Trend */}
         <div className="lg:col-span-8 md:col-span-2 col-span-1">
-          <LineChartCard
-            title="Monthly Cash Inflow vs Outflow"
-            subtitle="Income vs expense progression across 8 months"
-            data={mockDatasets.incomeVsExpenses}
-            xAxisKey="month"
-            dataKeys={[
-              { key: 'income', color: Colors.primary, name: 'Monthly Income' },
-              { key: 'expenses', color: Colors.accent, name: 'Monthly Expenses' },
-            ]}
-            height={280}
-          />
+          {cashFlowData.length > 0 ? (
+            <LineChartCard
+              title="Monthly Cash Inflow vs Outflow"
+              subtitle="Income vs expense progression"
+              data={cashFlowData}
+              xAxisKey="month"
+              dataKeys={[
+                { key: 'income', color: Colors.primary, name: 'Monthly Income' },
+                { key: 'expenses', color: Colors.accent, name: 'Monthly Expenses' },
+              ]}
+              height={280}
+            />
+          ) : (
+            <div className="clay-surface bg-card p-6 border border-border/60 rounded-2xl flex flex-col items-center justify-center text-center h-[280px]">
+              <LucideIcons.Calendar className="h-10 w-10 text-text-muted mb-2 opacity-40" />
+              <h4 className="text-sm font-bold text-text-primary">No Monthly Statement Data</h4>
+              <p className="text-xs text-text-muted mt-1 max-w-sm">
+                No monthly transaction data available yet.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Monthly Savings Growth Area */}
         <div className="lg:col-span-4 md:col-span-2 col-span-1">
-          <AreaChartCard
-            title="Monthly Savings Growth"
-            subtitle="Net surplus saved per month"
-            data={mockDatasets.incomeVsExpenses}
-            xAxisKey="month"
-            dataKeys={[
-              { key: 'savings', color: Colors.success, name: 'Net Savings' },
-            ]}
-            height={280}
-          />
+          {cashFlowData.length > 0 ? (
+            <AreaChartCard
+              title="Monthly Savings Growth"
+              subtitle="Net surplus saved per month"
+              data={cashFlowData}
+              xAxisKey="month"
+              dataKeys={[{ key: 'savings', color: Colors.success, name: 'Net Savings' }]}
+              height={280}
+            />
+          ) : (
+            <div className="clay-surface bg-card p-6 border border-border/60 rounded-2xl flex flex-col items-center justify-center text-center h-[280px]">
+              <LucideIcons.PiggyBank className="h-10 w-10 text-text-muted mb-2 opacity-40" />
+              <h4 className="text-sm font-bold text-text-primary">No Savings Growth</h4>
+              <p className="text-xs text-text-muted mt-1 max-w-xs">
+                Start saving to track monthly growth.
+              </p>
+            </div>
+          )}
         </div>
       </DashboardGrid>
     </motion.div>
-  );
+  )
 }
 
-export default Monthly;
+export default Monthly

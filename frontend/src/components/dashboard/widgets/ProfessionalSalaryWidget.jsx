@@ -80,14 +80,20 @@ export function ProfessionalSalaryWidget({ widget, sizeClass, dashboardData }) {
             <div className="absolute inset-0 opacity-[0.02] bg-[radial-gradient(#7C3AED_1px,transparent_1px)] [background-size:10px_10px]" />
 
             {/* Simple executive bar comparisons */}
-            {[45, 60, 75].map((val, idx) => (
-              <div key={idx} className="flex items-end gap-1 h-full">
-                {/* Income bar */}
-                <div className="w-2 rounded bg-primary" style={{ height: `${val}%` }} />
-                {/* Expense bar */}
-                <div className="w-2 rounded bg-primary/20" style={{ height: `${val * 0.45}%` }} />
+            {totalIncome > 0 ? (
+              [45, 60, 75].map((val, idx) => (
+                <div key={idx} className="flex items-end gap-1 h-full">
+                  {/* Income bar */}
+                  <div className="w-2 rounded bg-primary" style={{ height: `${val}%` }} />
+                  {/* Expense bar */}
+                  <div className="w-2 rounded bg-primary/20" style={{ height: `${val * 0.45}%` }} />
+                </div>
+              ))
+            ) : (
+              <div className="text-[10px] font-bold text-text-muted my-auto">
+                No flow trend recorded
               </div>
-            ))}
+            )}
 
             {/* Legend inside chart */}
             <div className="absolute top-1.5 right-2 flex gap-2 text-[8px] font-bold text-text-muted">

@@ -1,0 +1,21 @@
+
+# Environments & dependencies
+backend/.venv/
+.venv/
+node_modules/
+dist/
+build/
+
+# Python cache & artifacts
+**/__pycache__/
+*.py[cod]
+*.pyo
+
+# Temp storage & databases
+storage/
+data/
+*.db
+*.log
+
+
+

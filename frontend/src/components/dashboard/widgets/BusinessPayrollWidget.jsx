@@ -1,27 +1,25 @@
-import React from 'react';
-import { Badge } from '@/components/ui';
-import * as LucideIcons from 'lucide-react';
-import { motion, useReducedMotion } from 'framer-motion';
-import WidgetContainer from '../WidgetContainer';
-import WidgetActions from '../WidgetActions';
+import React from 'react'
+import { Badge } from '@/components/ui'
+import * as LucideIcons from 'lucide-react'
+import { motion, useReducedMotion } from 'framer-motion'
+import WidgetContainer from '../WidgetContainer'
+import WidgetActions from '../WidgetActions'
 
-export function BusinessPayrollWidget({ widget, sizeClass }) {
-  const shouldReduceMotion = useReducedMotion();
+export function BusinessPayrollWidget({ widget, sizeClass, dashboardData }) {
+  const shouldReduceMotion = useReducedMotion()
 
-  // Mock activity timelines
-  const activities = [
-    { text: 'Invoice #INV-081 generated', type: 'billing', time: '2 hours ago', icon: 'FileSpreadsheet' },
-    { text: 'Monthly payroll processed successfully', type: 'payroll', time: '1 day ago', icon: 'Users' },
-    { text: 'Server hosting expense logged', type: 'expense', time: '2 days ago', icon: 'Database' },
-    { text: 'Raw inventory restock purchase order', type: 'inventory', time: '3 days ago', icon: 'ShoppingCart' },
-  ];
+  const totalExp = parseFloat(dashboardData?.summary?.total_expenses || 0)
+  const expenseCategories = dashboardData?.cash_flow?.expense_by_category || {}
+  const salaryExp = parseFloat(
+    expenseCategories['SALARY'] || expenseCategories['PAYROLL'] || totalExp || 0
+  )
 
   const toolbar = (
     <WidgetActions
       onInfo={() => alert('Corporate payroll and historical activity events')}
       onRefresh={() => console.log('Payroll refresh')}
     />
-  );
+  )
 
   return (
     <WidgetContainer
@@ -36,57 +34,54 @@ export function BusinessPayrollWidget({ widget, sizeClass }) {
         <div className="flex justify-between items-start">
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider leading-none">
-              Active Monthly Payroll (12 Employees)
+              Active Monthly Payroll & OPEX
             </span>
             <span className="text-3xl font-extrabold text-text-primary tracking-tight mt-1.5">
-              ₹95,000
+              ₹{salaryExp.toLocaleString('en-IN')}
             </span>
             <span className="text-xs text-text-secondary mt-1 font-medium">
-              Next credit cycle scheduled on 31st Aug
+              {salaryExp > 0 ? 'Recorded expense outflows' : 'No payroll expenses recorded'}
             </span>
           </div>
           <Badge
             variant="secondary"
-            className="text-[10px] font-bold bg-success/10 border-success/15 text-success py-0.5 px-2 rounded"
+            className="text-[10px] font-bold bg-primary/10 border-primary/15 text-primary py-0.5 px-2 rounded"
           >
-            Processed
+            {salaryExp > 0 ? 'Active' : 'No Data'}
           </Badge>
         </div>
 
-        {/* Corporate Activity Timeline */}
+        {/* Corporate Activity Breakdown */}
         <div className="flex flex-col gap-3">
           <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider leading-none">
-            Corporate Operations Timeline
+            Expenses Breakdown
           </span>
 
-          <div className="flex flex-col gap-3 border-l border-border/80 ml-2 pl-4 relative">
-            {activities.slice(0, 3).map((act, idx) => {
-              const Icon = LucideIcons[act.icon] || LucideIcons.Info;
-              return (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, x: shouldReduceMotion ? 0 : -5 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="flex justify-between items-center text-xs relative group"
+          <div className="flex flex-col gap-2">
+            {Object.keys(expenseCategories).length > 0 ? (
+              Object.entries(expenseCategories).map(([cat, val]) => (
+                <div
+                  key={cat}
+                  className="flex justify-between items-center text-xs p-2 bg-muted/20 rounded-lg border border-border/50"
                 >
-                  {/* Dot overlay */}
-                  <div className="absolute left-[-21.5px] top-[4px] h-3.5 w-3.5 rounded-full border-2 border-card bg-primary flex items-center justify-center text-white">
-                    <Icon className="h-1.5 w-1.5 stroke-[2.5]" />
-                  </div>
-
-                  <div className="flex flex-col gap-0.5 text-left pl-1">
-                    <span className="font-extrabold text-text-primary group-hover:text-primary transition-colors duration-200">{act.text}</span>
-                    <span className="text-[10px] font-bold text-text-muted">{act.time}</span>
-                  </div>
-                </motion.div>
-              );
-            })}
+                  <span className="font-semibold text-text-secondary capitalize">
+                    {cat.replace(/_/g, ' ').toLowerCase()}
+                  </span>
+                  <span className="font-bold text-text-primary">
+                    ₹{parseFloat(val).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <span className="text-xs font-medium text-text-muted text-center py-4">
+                No corporate expenses logged yet.
+              </span>
+            )}
           </div>
         </div>
       </div>
     </WidgetContainer>
-  );
+  )
 }
 
-export default BusinessPayrollWidget;
+export default BusinessPayrollWidget

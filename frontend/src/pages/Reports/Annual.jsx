@@ -1,19 +1,21 @@
-import React from 'react';
-import { mockDatasets, Colors } from '@/config';
-import { motion, useReducedMotion } from 'framer-motion';
-import { DashboardGrid } from '@/components/dashboard';
-import { AreaChartCard, BarChartCard } from '@/components/charts';
-import * as LucideIcons from 'lucide-react';
-import { Badge } from '@/components/ui';
+import React from 'react'
+import { useCashFlow, useDashboardData } from '@/hooks'
+import { Colors } from '@/config'
+import { motion, useReducedMotion } from 'framer-motion'
+import { DashboardGrid } from '@/components/dashboard'
+import { AreaChartCard } from '@/components/charts'
+import * as LucideIcons from 'lucide-react'
 
 export function Annual() {
-  const shouldReduceMotion = useReducedMotion();
+  const shouldReduceMotion = useReducedMotion()
+  const { data: cashFlowResp } = useCashFlow()
+  const { data: dashboardResp } = useDashboardData()
 
-  const milestones = [
-    { year: '2026', title: 'Crossed ₹15 Lakhs Portfolio Net Worth', icon: 'Trophy', color: '#10B981' },
-    { year: '2025', title: 'Achieved 6-Month Emergency Fund Target', icon: 'Shield', color: '#7C3AED' },
-    { year: '2024', title: 'Started Systematic SIP Investment Plan', icon: 'TrendingUp', color: '#3B82F6' },
-  ];
+  const cashFlowData = cashFlowResp?.data || cashFlowResp || []
+  const dashboardData = dashboardResp?.data || dashboardResp || {}
+
+  const totalIncome = dashboardData?.summary?.totalIncome ?? 0
+  const totalSavings = dashboardData?.summary?.totalSavings ?? dashboardData?.summary?.netWorth ?? 0
 
   return (
     <motion.div
@@ -24,27 +26,38 @@ export function Annual() {
     >
       <div className="flex flex-col gap-1">
         <h3 className="text-lg font-black text-text-primary uppercase tracking-wider leading-none">
-          Annual Performance & 5-Year Growth
+          Annual Performance & Growth
         </h3>
         <p className="text-xs font-bold text-text-muted">
-          Multi-year revenue, net worth growth trajectories, and financial milestone accomplishments.
+          Multi-year revenue, net worth growth trajectories, and financial milestone
+          accomplishments.
         </p>
       </div>
 
       <DashboardGrid>
         {/* 5-Year Net Worth Area Chart */}
         <div className="lg:col-span-8 md:col-span-2 col-span-1">
-          <AreaChartCard
-            title="5-Year Net Worth Progression"
-            subtitle="Multi-year accumulation (2022 - 2026)"
-            data={mockDatasets.annualGrowth}
-            xAxisKey="year"
-            dataKeys={[
-              { key: 'netWorth', color: Colors.primary, name: 'Net Worth Value' },
-              { key: 'revenue', color: Colors.success, name: 'Annual Income' },
-            ]}
-            height={280}
-          />
+          {cashFlowData.length > 0 ? (
+            <AreaChartCard
+              title="Net Worth Progression"
+              subtitle="Historical performance based on database records"
+              data={cashFlowData}
+              xAxisKey="month"
+              dataKeys={[
+                { key: 'netWorth', color: Colors.primary, name: 'Net Worth Value' },
+                { key: 'income', color: Colors.success, name: 'Annual Income' },
+              ]}
+              height={280}
+            />
+          ) : (
+            <div className="clay-surface bg-card p-6 border border-border/60 rounded-2xl flex flex-col items-center justify-center text-center h-[280px]">
+              <LucideIcons.TrendingUp className="h-10 w-10 text-text-muted mb-2 opacity-40" />
+              <h4 className="text-sm font-bold text-text-primary">No Multi-Year History</h4>
+              <p className="text-xs text-text-muted mt-1 max-w-sm">
+                No historical financial records accumulated yet.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Milestones Card */}
@@ -55,26 +68,33 @@ export function Annual() {
             </h4>
 
             <div className="flex flex-col gap-3">
-              {milestones.map((m, i) => {
-                const Icon = LucideIcons[m.icon] || LucideIcons.Award;
-                return (
-                  <div key={i} className="p-3 rounded-xl bg-muted/30 border border-border/60 flex items-start gap-3">
-                    <div className="p-2 rounded-lg text-white shrink-0" style={{ backgroundColor: m.color }}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-black text-text-muted">{m.year}</span>
-                      <span className="text-xs font-bold text-text-primary">{m.title}</span>
-                    </div>
+              {totalIncome > 0 || totalSavings > 0 ? (
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/60 flex items-start gap-3">
+                  <div className="p-2 rounded-lg text-white shrink-0 bg-emerald-500">
+                    <LucideIcons.Trophy className="h-4 w-4" />
                   </div>
-                );
-              })}
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-black text-text-muted">CURRENT YEAR</span>
+                    <span className="text-xs font-bold text-text-primary">
+                      Total Savings: ₹{totalSavings.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center text-center p-6 text-text-muted">
+                  <LucideIcons.Award className="h-8 w-8 mb-2 opacity-40" />
+                  <span className="text-xs font-semibold">No Milestones Recorded</span>
+                  <span className="text-[11px] opacity-75 mt-0.5">
+                    Save your first milestone to view progress.
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </DashboardGrid>
     </motion.div>
-  );
+  )
 }
 
-export default Annual;
+export default Annual
